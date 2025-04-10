@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>School Admin</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; }
+        .top-bar { background: #1F2937; color: white; padding: 10px; position: fixed; top: 0; width: 100%; }
+        .sidebar { background: #E5E7EB; width: 200px; position: fixed; top: 40px; bottom: 0; padding: 10px; }
+        .sidebar a { display: block; padding: 8px; text-decoration: none; color: black; }
+        .sidebar a:hover { background: #BFDBFE; }
+        .sidebar a.active { background: #3B82F6; color: white; }
+        .content { margin-left: 220px; margin-top: 50px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #D1D5DB; padding: 8px; }
+        th { background: #D1D5DB; }
+        tr:hover { background: #EFF6FF; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: #FFF; width: 400px; margin: 100px auto; padding: 20px; border: 1px solid #888; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+        .modal-header { background: #F0F0F0; padding: 5px; font-weight: bold; }
+        .modal-footer { margin-top: 20px; text-align: right; }
+        .btn { padding: 5px 10px; cursor: pointer; }
+        .btn-primary { background: #0078D7; color: white; border: none; }
+        .btn-secondary { background: #D0D0D0; border: 1px solid #888; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">School Admin | Jane [X]</div>
+    <div class="sidebar">
+        <a href="{{ url_for('students') }}" class="{% if active_tab == 'students' %}active{% endif %}">👤 Students</a>
+        <a href="{{ url_for('classes') }}" class="{% if active_tab == 'classes' %}active{% endif %}">📚 Classes</a>
+        <a href="#">🏠 Dashboard</a>
+        <a href="#">🏫 Classrooms</a>
+        <a href="#">👩‍🏫 Teachers</a>
+    </div>
+    <div class="content">
+        {% if active_tab == 'students' %}
+            <h1>Students</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Grade</th>
+                        <th>Parent Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
+                        <td>{{ student['grade_level'] }}</td>
+                        <td>{{ student['parent_email'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% elif active_tab == 'classes' %}
+            <h1>Classes</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('addClassModal').style.display='block'">Add Class</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Days Attending</th>
+                        <th>Additional Costs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for class in classes %}
+                    <tr>
+                        <td>{{ class['name'] }}</td>
+                        <td>{{ class['days_attending']|join(', ') }}</td>
+                        <td>${{ class['additional_costs'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="addStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Student</div>
+            <form method="POST" action="{{ url_for('add_student') }}">
+                <p><label>First Name:</label><br><input type="text" name="first_name" required></p>
+                <p><label>Last Name:</label><br><input type="text" name="last_name" required></p>
+                <p><label>Grade Level:</label><br><input type="text" name="grade_level"></p>
+                <p><label>Parent Email:</label><br><input type="email" name="parent_email"></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addStudentModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Class Modal -->
+    <div id="addClassModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Class</div>
+            <form method="POST" action="{{ url_for('add_class') }}">
+                <p><label>Class Name:</label><br><input type="text" name="name" required></p>
+                <p><label>Days Attending (comma-separated):</label><br><input type="text" name="days_attending" placeholder="e.g., Monday, Wednesday"></p>
+                <p><label>Additional Costs ($):</label><br><input type="number" name="additional_costs" step="0.01" min="0"></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addClassModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
