@@ -40,33 +40,44 @@
         {% endwith %}
 
         {% if active_tab == 'students' %}
-            <h1>Students</h1>
-            <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Grade Level</th>
-                        <th>Parent Email</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in students %}
-                    <tr>
-                        <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
-                        <td>{{ student['grade_level'] }}</td>
-                        <td>{{ student['parent_email'] }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_student', student_id=student['student_id']) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% elif active_tab == 'classes' %}
+    <h1>Students</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Grade Level</th>
+                <th>Parent Name</th>
+                <th>Parent Email</th>
+                <th>Allergies</th>
+                <th>Medicines</th>
+                <th>Medical Conditions</th>
+                <th>Comments</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
+                <td>{{ student['grade_level'] }}</td>
+                <td>{{ student['parent_name'] }}</td>
+                <td>{{ student['parent_email'] }}</td>
+                <td>{{ student['allergies'] }}</td>
+                <td>{{ student['medicines'] }}</td>
+                <td>{{ student['medical_conditions'] }}</td>
+                <td>{{ student['comments'] }}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="openEditStudentModal('{{ student['student_id'] }}', '{{ student['first_name'] }}', '{{ student['last_name'] }}', '{{ student['grade_level'] }}', '{{ student['parent_name'] }}', '{{ student['parent_email'] }}', '{{ student['allergies'] }}', '{{ student['medicines'] }}', '{{ student['medical_conditions'] }}', '{{ student['comments'] }}')">Edit</button>
+                    <form method="POST" action="{{ url_for('delete_student', student_id=student['student_id']) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% elif active_tab == 'classes' %}
             <h1>Classes</h1>
             <button class="btn btn-primary" onclick="document.getElementById('addClassModal').style.display='block'">Add Class</button>
             <button class="btn btn-primary" onclick="document.getElementById('enrollStudentModal').style.display='block'">Enroll Student</button>
@@ -168,11 +179,39 @@
             <form method="POST" action="{{ url_for('add_student') }}">
                 <p><label>First Name:</label><br><input type="text" name="first_name" required></p>
                 <p><label>Last Name:</label><br><input type="text" name="last_name" required></p>
-                <p><label>Grade Level:</label><br><input type="text" name="grade_level"></p>
-                <p><label>Parent Email:</label><br><input type="email" name="parent_email"></p>
+                <p><label>Grade Level:</label><br><input type="text" name="grade_level" placeholder="e.g., 5" required></p>
+                <p><label>Parent Name:</label><br><input type="text" name="parent_name" required></p>
+                <p><label>Parent Email:</label><br><input type="email" name="parent_email" required></p>
+                <p><label>Allergies:</label><br><input type="text" name="allergies" placeholder="e.g., Peanuts, Latex"></p>
+                <p><label>Medicines:</label><br><input type="text" name="medicines" placeholder="e.g., Adderall 10mg daily"></p>
+                <p><label>Medical Conditions:</label><br><input type="text" name="medical_conditions" placeholder="e.g., Asthma, Diabetes"></p>
+                <p><label>Comments:</label><br><input type="text" name="comments" placeholder="e.g., Needs inhaler before PE"></p>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">OK</button>
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('addStudentModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Student</div>
+            <form method="POST" action="{{ url_for('edit_student') }}">
+                <input type="hidden" id="edit_student_id" name="student_id">
+                <p><label>First Name:</label><br><input type="text" id="edit_first_name" name="first_name" required></p>
+                <p><label>Last Name:</label><br><input type="text" id="edit_last_name" name="last_name" required></p>
+                <p><label>Grade Level:</label><br><input type="text" id="edit_grade_level" name="grade_level" required></p>
+                <p><label>Parent Name:</label><br><input type="text" id="edit_parent_name" name="parent_name" required></p>
+                <p><label>Parent Email:</label><br><input type="email" id="edit_parent_email" name="parent_email" required></p>
+                <p><label>Allergies:</label><br><input type="text" id="edit_allergies" name="allergies" placeholder="e.g., Peanuts, Latex"></p>
+                <p><label>Medicines:</label><br><input type="text" id="edit_medicines" name="medicines" placeholder="e.g., Adderall 10mg daily"></p>
+                <p><label>Medical Conditions:</label><br><input type="text" id="edit_medical_conditions" name="medical_conditions" placeholder="e.g., Asthma, Diabetes"></p>
+                <p><label>Comments:</label><br><input type="text" id="edit_comments" name="comments" placeholder="e.g., Needs inhaler before PE"></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('editStudentModal').style.display='none'">Cancel</button>
                 </div>
             </form>
         </div>
@@ -340,7 +379,7 @@
                 if (day === 'Thursday') document.getElementById('edit_thursday').checked = true;
             });
         }
-    
+
         function formatPhoneInput(input) {
             let value = input.value.replace(/\D/g, '');
             if (value.length > 10) value = value.slice(0, 10);
@@ -349,6 +388,20 @@
             if (value.length > 3) formatted += ')' + value.slice(3, 6);
             if (value.length > 6) formatted += '-' + value.slice(6, 10);
             input.value = formatted;
+        }
+
+        function openEditStudentModal(studentId, firstName, lastName, gradeLevel, parentName, parentEmail, allergies, medicines, medicalConditions, comments) {
+            document.getElementById('editStudentModal').style.display = 'block';
+            document.getElementById('edit_student_id').value = studentId;
+            document.getElementById('edit_first_name').value = firstName;
+            document.getElementById('edit_last_name').value = lastName;
+            document.getElementById('edit_grade_level').value = gradeLevel || '';
+            document.getElementById('edit_parent_name').value = parentName || '';
+            document.getElementById('edit_parent_email').value = parentEmail || '';
+            document.getElementById('edit_allergies').value = allergies || '';
+            document.getElementById('edit_medicines').value = medicines || '';
+            document.getElementById('edit_medical_conditions').value = medicalConditions || '';
+            document.getElementById('edit_comments').value = comments || '';
         }
     </script>
 </body>

@@ -12,10 +12,9 @@ supabase: Client = create_client(url, key)
 def format_phone(phone):
     if not phone:
         return ""
-    # Remove non-digits
     digits = ''.join(filter(str.isdigit, phone))
     if len(digits) != 10:
-        return phone  # Return as-is if not 10 digits
+        return phone
     return f"({digits[:3]}){digits[3:6]}-{digits[6:]}"
 
 app.jinja_env.filters['format_phone'] = format_phone
@@ -35,12 +34,22 @@ def add_student():
     first_name = request.form['first_name']
     last_name = request.form['last_name']
     grade_level = request.form['grade_level']
+    parent_name = request.form['parent_name']
     parent_email = request.form['parent_email']
+    medicines = request.form['medicines'] or None
+    allergies = request.form['allergies'] or None
+    medical_conditions = request.form['medical_conditions'] or None
+    comments = request.form['comments'] or None
     data = {
         'first_name': first_name,
         'last_name': last_name,
         'grade_level': grade_level,
-        'parent_email': parent_email
+        'parent_name': parent_name,
+        'parent_email': parent_email,
+        'medicines': medicines,
+        'allergies': allergies,
+        'medical_conditions': medical_conditions,
+        'comments': comments
     }
     response = supabase.table('students').insert(data).execute()
     if hasattr(response, 'error') and response.error:
@@ -48,9 +57,38 @@ def add_student():
     flash('Student added successfully!')
     return redirect(url_for('students'))
 
+@app.route('/edit_student', methods=['POST'])
+def edit_student():
+    student_id = request.form['student_id']
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    grade_level = request.form['grade_level']
+    parent_name = request.form['parent_name']
+    parent_email = request.form['parent_email']
+    medicines = request.form['medicines'] or None
+    allergies = request.form['allergies'] or None
+    medical_conditions = request.form['medical_conditions'] or None
+    comments = request.form['comments'] or None
+    data = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'grade_level': grade_level,
+        'parent_name': parent_name,
+        'parent_email': parent_email,
+        'medicines': medicines,
+        'allergies': allergies,
+        'medical_conditions': medical_conditions,
+        'comments': comments
+    }
+    response = supabase.table('students').update(data).eq('student_id', student_id).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error updating student: {response.error}", 500
+    flash('Student updated successfully!')
+    return redirect(url_for('students'))
+
 @app.route('/classes')
 def classes():
-    class_response = supabase.table('classes').select('*, teachers(first_name, last_name)').execute()
+    class_response = supabase.table('classes').select('*, teachers(first_name, last_name), classrooms(name)').execute()
     classes = class_response.data
     enroll_response = supabase.table('enrollments').select('class_id, student_id, students(first_name, last_name)').execute()
     enrollments = enroll_response.data
@@ -58,7 +96,9 @@ def classes():
     students = student_response.data
     teacher_response = supabase.table('teachers').select('*').execute()
     teachers = teacher_response.data
-    return render_template('index.html', classes=classes, enrollments=enrollments, students=students, teachers=teachers, active_tab='classes')
+    classroom_response = supabase.table('classrooms').select('*').execute()
+    classrooms = classroom_response.data
+    return render_template('index.html', classes=classes, enrollments=enrollments, students=students, teachers=teachers, classrooms=classrooms, active_tab='classes')
 
 @app.route('/add_class', methods=['POST'])
 def add_class():
@@ -70,11 +110,13 @@ def add_class():
         return redirect(url_for('classes'))
     additional_costs = float(request.form['additional_costs'] or 0)
     teacher_id = request.form['teacher_id'] or None
+    classroom_id = request.form['classroom_id'] or None
     data = {
         'name': name,
         'days_attending': days_attending,
         'additional_costs': additional_costs,
-        'teacher_id': teacher_id
+        'teacher_id': teacher_id,
+        'classroom_id': classroom_id
     }
     response = supabase.table('classes').insert(data).execute()
     if hasattr(response, 'error') and response.error:
@@ -135,11 +177,13 @@ def edit_class():
         return redirect(url_for('classes'))
     additional_costs = float(request.form['additional_costs'] or 0)
     teacher_id = request.form['teacher_id'] or None
+    classroom_id = request.form['classroom_id'] or None
     data = {
         'name': name,
         'days_attending': days_attending,
         'additional_costs': additional_costs,
-        'teacher_id': teacher_id
+        'teacher_id': teacher_id,
+        'classroom_id': classroom_id
     }
     response = supabase.table('classes').update(data).eq('class_id', class_id).execute()
     if hasattr(response, 'error') and response.error:
@@ -173,6 +217,35 @@ def delete_student(student_id):
         return f"Error deleting student: {response.error}", 500
     flash('Student deleted successfully!')
     return redirect(url_for('students'))
+
+@app.route('/classrooms')
+def classrooms():
+    response = supabase.table('classrooms').select('*').execute()
+    classrooms = response.data
+    return render_template('index.html', classrooms=classrooms, active_tab='classrooms')
+
+@app.route('/add_classroom', methods=['POST'])
+def add_classroom():
+    name = request.form['name']
+    capacity = int(request.form['capacity'])
+    data = {
+        'name': name,
+        'capacity': capacity
+    }
+    response = supabase.table('classrooms').insert(data).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error adding classroom: {response.error}", 500
+    flash('Classroom added successfully!')
+    return redirect(url_for('classrooms'))
+
+@app.route('/delete_classroom/<classroom_id>', methods=['POST'])
+def delete_classroom(classroom_id):
+    supabase.table('classes').update({'classroom_id': None}).eq('classroom_id', classroom_id).execute()
+    response = supabase.table('classrooms').delete().eq('classroom_id', classroom_id).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error deleting classroom: {response.error}", 500
+    flash('Classroom deleted successfully!')
+    return redirect(url_for('classrooms'))
 
 if __name__ == '__main__':
     app.run(debug=True)
