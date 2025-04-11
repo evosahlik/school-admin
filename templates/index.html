@@ -30,7 +30,7 @@
         <a href="{{ url_for('classes') }}" class="{% if active_tab == 'classes' %}active{% endif %}">📚 Classes</a>
         <a href="#">🏠 Dashboard</a>
         <a href="#">🏫 Classrooms</a>
-        <a href="#">👩‍🏫 Teachers</a>
+        <a href="{{ url_for('teachers') }}" class="{% if active_tab == 'teachers' %}active{% endif %}">👩‍🏫 Teachers</a>
     </div>
     <div class="content">
         {% with messages = get_flashed_messages() %}
@@ -73,6 +73,7 @@
                         <th>Name</th>
                         <th>Days Attending</th>
                         <th>Additional Costs</th>
+                        <th>Teacher</th>
                         <th>Enrolled Students</th>
                     </tr>
                 </thead>
@@ -82,11 +83,36 @@
                         <td>{{ class['name'] }}</td>
                         <td>{{ class['days_attending']|join(', ') }}</td>
                         <td>${{ class['additional_costs'] }}</td>
+                        <td>{{ class['teachers']['first_name'] }} {{ class['teachers']['last_name'] if class['teachers'] else '' }}</td>
                         <td>
                             {% for enrollment in enrollments if enrollment['class_id'] == class['class_id'] %}
                                 {{ enrollment['students']['first_name'] }} {{ enrollment['students']['last_name'] }}<br>
                             {% endfor %}
                         </td>
+                        <td>
+                            <button class="btn btn-primary" onclick="openEditClassModal('{{ class['class_id'] }}', '{{ class['name'] }}', '{{ class['days_attending']|join(', ') }}', '{{ class['additional_costs'] }}', '{{ class['teachers']['teacher_id'] if class['teachers'] else '' }}')">Edit</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% elif active_tab == 'teachers' %}
+            <h1>Teachers</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('addTeacherModal').style.display='block'">Add Teacher</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr>
+                        <td>{{ teacher['first_name'] }} {{ teacher['last_name'] }}</td>
+                        <td>{{ teacher['email'] }}</td>
+                        <td>{{ teacher['phone'] }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -119,6 +145,15 @@
                 <p><label>Class Name:</label><br><input type="text" name="name" required></p>
                 <p><label>Days Attending (comma-separated):</label><br><input type="text" name="days_attending" placeholder="e.g., Monday, Wednesday"></p>
                 <p><label>Additional Costs ($):</label><br><input type="number" name="additional_costs" step="0.01" min="0"></p>
+                <p>
+                    <label>Teacher:</label><br>
+                    <select name="teacher_id">
+                        <option value="">None</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">OK</button>
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('addClassModal').style.display='none'">Cancel</button>
@@ -155,5 +190,58 @@
             </form>
         </div>
     </div>
+
+    <!-- Edit Class Modal -->
+    <div id="editClassModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Class</div>
+            <form method="POST" action="{{ url_for('edit_class') }}">
+                <input type="hidden" id="edit_class_id" name="class_id">
+                <p><label>Class Name:</label><br><input type="text" id="edit_name" name="name" required></p>
+                <p><label>Days Attending (comma-separated):</label><br><input type="text" id="edit_days_attending" name="days_attending" placeholder="e.g., Monday, Wednesday"></p>
+                <p><label>Additional Costs ($):</label><br><input type="number" id="edit_additional_costs" name="additional_costs" step="0.01" min="0"></p>
+                <p>
+                    <label>Teacher:</label><br>
+                    <select id="edit_teacher_id" name="teacher_id">
+                        <option value="">None</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('editClassModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Teacher Modal -->
+    <div id="addTeacherModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Teacher</div>
+            <form method="POST" action="{{ url_for('add_teacher') }}">
+                <p><label>First Name:</label><br><input type="text" name="first_name" required></p>
+                <p><label>Last Name:</label><br><input type="text" name="last_name" required></p>
+                <p><label>Email:</label><br><input type="email" name="email" required></p>
+                <p><label>Phone:</label><br><input type="text" name="phone"></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTeacherModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+    function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId) {
+        document.getElementById('editClassModal').style.display = 'block';
+        document.getElementById('edit_class_id').value = classId;
+        document.getElementById('edit_name').value = name;
+        document.getElementById('edit_days_attending').value = daysAttending;
+        document.getElementById('edit_additional_costs').value = additionalCosts;
+        document.getElementById('edit_teacher_id').value = teacherId || '';
+    }
+</script>
 </body>
 </html>
