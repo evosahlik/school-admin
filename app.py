@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from supabase import create_client, Client
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'  # Replace with something unique
 
 # Supabase setup
 url = "https://vemywpbjbubftpvthaen.supabase.co"
@@ -10,7 +11,7 @@ supabase: Client = create_client(url, key)
 
 @app.route('/')
 def index():
-    return redirect(url_for('students'))  # Default to students
+    return redirect(url_for('students'))
 
 @app.route('/students')
 def students():
@@ -37,14 +38,18 @@ def add_student():
 
 @app.route('/classes')
 def classes():
-    response = supabase.table('classes').select('*').execute()
-    classes = response.data
-    return render_template('index.html', classes=classes, active_tab='classes')
+    class_response = supabase.table('classes').select('*').execute()
+    classes = class_response.data
+    enroll_response = supabase.table('enrollments').select('class_id, student_id, students(first_name, last_name)').execute()
+    enrollments = enroll_response.data
+    student_response = supabase.table('students').select('*').execute()
+    students = student_response.data
+    return render_template('index.html', classes=classes, enrollments=enrollments, students=students, active_tab='classes')
 
 @app.route('/add_class', methods=['POST'])
 def add_class():
     name = request.form['name']
-    days_attending = request.form['days_attending'].split(',')  # Convert comma-separated to list
+    days_attending = request.form['days_attending'].split(',')
     additional_costs = float(request.form['additional_costs'] or 0)
     data = {
         'name': name,
@@ -54,6 +59,26 @@ def add_class():
     response = supabase.table('classes').insert(data).execute()
     if hasattr(response, 'error') and response.error:
         return f"Error adding class: {response.error}", 500
+    return redirect(url_for('classes'))
+
+@app.route('/enroll_student', methods=['POST'])
+def enroll_student():
+    class_id = request.form['class_id']
+    student_id = request.form['student_id']
+    
+    check = supabase.table('enrollments').select('enrollment_id').eq('class_id', class_id).eq('student_id', student_id).execute()
+    if check.data:
+        flash('Student is already enrolled in this class.')
+        return redirect(url_for('classes'))
+    
+    data = {
+        'class_id': class_id,
+        'student_id': student_id
+    }
+    response = supabase.table('enrollments').insert(data).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error enrolling student: {response.error}", 500
+    flash('Student enrolled successfully!')
     return redirect(url_for('classes'))
 
 if __name__ == '__main__':
