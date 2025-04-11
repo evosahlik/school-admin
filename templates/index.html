@@ -24,24 +24,21 @@
     </style>
 </head>
 <body>
-    <div class="top-bar">School Admin | Jane [X]</div>
     <div class="sidebar">
-        <a href="{{ url_for('students') }}" class="{% if active_tab == 'students' %}active{% endif %}">👤 Students</a>
+        <a href="{{ url_for('students') }}" class="{% if active_tab == 'students' %}active{% endif %}">👩‍🎓 Students</a>
         <a href="{{ url_for('classes') }}" class="{% if active_tab == 'classes' %}active{% endif %}">📚 Classes</a>
-        <a href="#">🏠 Dashboard</a>
-        <a href="#">🏫 Classrooms</a>
         <a href="{{ url_for('teachers') }}" class="{% if active_tab == 'teachers' %}active{% endif %}">👩‍🏫 Teachers</a>
+        <a href="{{ url_for('classrooms') }}" class="{% if active_tab == 'classrooms' %}active{% endif %}">🏫 Classrooms</a>
     </div>
     <div class="content">
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div style="background: #EFF6FF; padding: 10px; margin-bottom: 10px;">
-                    {% for message in messages %}
-                        {{ message }}<br>
-                    {% endfor %}
-                </div>
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
             {% endif %}
         {% endwith %}
+
         {% if active_tab == 'students' %}
             <h1>Students</h1>
             <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
@@ -49,8 +46,9 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Grade</th>
+                        <th>Grade Level</th>
                         <th>Parent Email</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,7 +77,9 @@
                         <th>Days Attending</th>
                         <th>Additional Costs</th>
                         <th>Teacher</th>
+                        <th>Classroom</th>
                         <th>Enrolled Students</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -89,13 +89,14 @@
                         <td>{{ class['days_attending']|join(', ') }}</td>
                         <td>${{ class['additional_costs'] }}</td>
                         <td>{{ class['teachers']['first_name'] }} {{ class['teachers']['last_name'] if class['teachers'] else '' }}</td>
+                        <td>{{ class['classrooms']['name'] if class['classrooms'] else '' }}</td>
                         <td>
                             {% for enrollment in enrollments if enrollment['class_id'] == class['class_id'] %}
                                 {{ enrollment['students']['first_name'] }} {{ enrollment['students']['last_name'] }}<br>
                             {% endfor %}
                         </td>
                         <td>
-                            <button class="btn btn-primary" onclick="openEditClassModal('{{ class['class_id'] }}', '{{ class['name'] }}', '{{ class['days_attending']|join(', ') }}', '{{ class['additional_costs'] }}', '{{ class['teachers']['teacher_id'] if class['teachers'] else '' }}')">Edit</button>
+                            <button class="btn btn-primary" onclick="openEditClassModal('{{ class['class_id'] }}', '{{ class['name'] }}', '{{ class['days_attending']|join(', ') }}', '{{ class['additional_costs'] }}', '{{ class['teachers']['teacher_id'] if class['teachers'] else '' }}', '{{ class['classroom_id'] if class['classrooms'] else '' }}')">Edit</button>
                             <form method="POST" action="{{ url_for('delete_class', class_id=class['class_id']) }}" style="display:inline;">
                                 <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
                             </form>
@@ -113,6 +114,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Phone</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -130,9 +132,35 @@
                     {% endfor %}
                 </tbody>
             </table>
+        {% elif active_tab == 'classrooms' %}
+            <h1>Classrooms</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('addClassroomModal').style.display='block'">Add Classroom</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Capacity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classroom in classrooms %}
+                    <tr>
+                        <td>{{ classroom['name'] }}</td>
+                        <td>{{ classroom['capacity'] }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('delete_classroom', classroom_id=classroom['classroom_id']) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         {% endif %}
     </div>
 
+    <!-- Modals go here -->
     <!-- Add Student Modal -->
     <div id="addStudentModal" class="modal">
         <div class="modal-content">
@@ -169,6 +197,15 @@
                         <option value="">None</option>
                         {% for teacher in teachers %}
                         <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label>Classroom:</label><br>
+                    <select name="classroom_id">
+                        <option value="">None</option>
+                        {% for classroom in classrooms %}
+                        <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
                         {% endfor %}
                     </select>
                 </p>
@@ -232,6 +269,15 @@
                         {% endfor %}
                     </select>
                 </p>
+                <p>
+                    <label>Classroom:</label><br>
+                    <select id="edit_classroom_id" name="classroom_id">
+                        <option value="">None</option>
+                        {% for classroom in classrooms %}
+                        <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">OK</button>
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('editClassModal').style.display='none'">Cancel</button>
@@ -259,19 +305,33 @@
         </div>
     </div>
 
+    <!-- Add Classroom Modal -->
+    <div id="addClassroomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Add New Classroom</div>
+            <form method="POST" action="{{ url_for('add_classroom') }}">
+                <p><label>Name:</label><br><input type="text" name="name" required></p>
+                <p><label>Capacity:</label><br><input type="number" name="capacity" min="1" required></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addClassroomModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId) {
+        function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId, classroomId) {
             document.getElementById('editClassModal').style.display = 'block';
             document.getElementById('edit_class_id').value = classId;
             document.getElementById('edit_name').value = name;
             document.getElementById('edit_additional_costs').value = additionalCosts;
             document.getElementById('edit_teacher_id').value = teacherId || '';
-            // Reset checkboxes
+            document.getElementById('edit_classroom_id').value = classroomId || '';
             document.getElementById('edit_monday').checked = false;
             document.getElementById('edit_tuesday').checked = false;
             document.getElementById('edit_wednesday').checked = false;
             document.getElementById('edit_thursday').checked = false;
-            // Check current days
             let days = daysAttending.split(', ');
             days.forEach(day => {
                 if (day === 'Monday') document.getElementById('edit_monday').checked = true;
@@ -280,11 +340,10 @@
                 if (day === 'Thursday') document.getElementById('edit_thursday').checked = true;
             });
         }
-    </script>
-    <script>
+    
         function formatPhoneInput(input) {
-            let value = input.value.replace(/\D/g, ''); // Remove non-digits
-            if (value.length > 10) value = value.slice(0, 10); // Cap at 10 digits
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 10) value = value.slice(0, 10);
             let formatted = '';
             if (value.length > 0) formatted = '(' + value.slice(0, 3);
             if (value.length > 3) formatted += ')' + value.slice(3, 6);
