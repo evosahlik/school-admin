@@ -9,6 +9,17 @@ url = "https://vemywpbjbubftpvthaen.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlbXl3cGJqYnViZnRwdnRoYWVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMjAzOTQsImV4cCI6MjA1OTY5NjM5NH0.qxMKhyg2uMBylrvP5JdSy3LCHM46uZeOtcuOjeJbAmM"
 supabase: Client = create_client(url, key)
 
+def format_phone(phone):
+    if not phone:
+        return ""
+    # Remove non-digits
+    digits = ''.join(filter(str.isdigit, phone))
+    if len(digits) != 10:
+        return phone  # Return as-is if not 10 digits
+    return f"({digits[:3]}){digits[3:6]}-{digits[6:]}"
+
+app.jinja_env.filters['format_phone'] = format_phone
+
 @app.route('/')
 def index():
     return redirect(url_for('students'))
@@ -52,7 +63,7 @@ def classes():
 @app.route('/add_class', methods=['POST'])
 def add_class():
     name = request.form['name']
-    days_attending = request.form.getlist('days_attending')  # Get array from checkboxes
+    days_attending = request.form.getlist('days_attending')
     valid_days = {"Monday", "Tuesday", "Wednesday", "Thursday"}
     if not all(day in valid_days for day in days_attending):
         flash('Invalid days selected. Only Monday, Tuesday, Wednesday, Thursday allowed.')
@@ -117,7 +128,7 @@ def add_teacher():
 def edit_class():
     class_id = request.form['class_id']
     name = request.form['name']
-    days_attending = request.form.getlist('days_attending')  # Get array from checkboxes
+    days_attending = request.form.getlist('days_attending')
     valid_days = {"Monday", "Tuesday", "Wednesday", "Thursday"}
     if not all(day in valid_days for day in days_attending):
         flash('Invalid days selected. Only Monday, Tuesday, Wednesday, Thursday allowed.')
@@ -138,7 +149,6 @@ def edit_class():
 
 @app.route('/delete_class/<class_id>', methods=['POST'])
 def delete_class(class_id):
-    # Delete related enrollments first
     supabase.table('enrollments').delete().eq('class_id', class_id).execute()
     response = supabase.table('classes').delete().eq('class_id', class_id).execute()
     if hasattr(response, 'error') and response.error:
@@ -148,7 +158,6 @@ def delete_class(class_id):
 
 @app.route('/delete_teacher/<teacher_id>', methods=['POST'])
 def delete_teacher(teacher_id):
-    # Clear teacher_id from classes first
     supabase.table('classes').update({'teacher_id': None}).eq('teacher_id', teacher_id).execute()
     response = supabase.table('teachers').delete().eq('teacher_id', teacher_id).execute()
     if hasattr(response, 'error') and response.error:
@@ -158,7 +167,6 @@ def delete_teacher(teacher_id):
 
 @app.route('/delete_student/<student_id>', methods=['POST'])
 def delete_student(student_id):
-    # Delete related enrollments first
     supabase.table('enrollments').delete().eq('student_id', student_id).execute()
     response = supabase.table('students').delete().eq('student_id', student_id).execute()
     if hasattr(response, 'error') and response.error:

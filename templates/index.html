@@ -120,7 +120,7 @@
                     <tr>
                         <td>{{ teacher['first_name'] }} {{ teacher['last_name'] }}</td>
                         <td>{{ teacher['email'] }}</td>
-                        <td>{{ teacher['phone'] }}</td>
+                        <td>{{ teacher['phone']|format_phone }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('delete_teacher', teacher_id=teacher['teacher_id']) }}" style="display:inline;">
                                 <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
