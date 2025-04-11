@@ -59,6 +59,11 @@
                         <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
                         <td>{{ student['grade_level'] }}</td>
                         <td>{{ student['parent_email'] }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('delete_student', student_id=student['student_id']) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -91,6 +96,9 @@
                         </td>
                         <td>
                             <button class="btn btn-primary" onclick="openEditClassModal('{{ class['class_id'] }}', '{{ class['name'] }}', '{{ class['days_attending']|join(', ') }}', '{{ class['additional_costs'] }}', '{{ class['teachers']['teacher_id'] if class['teachers'] else '' }}')">Edit</button>
+                            <form method="POST" action="{{ url_for('delete_class', class_id=class['class_id']) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -113,6 +121,11 @@
                         <td>{{ teacher['first_name'] }} {{ teacher['last_name'] }}</td>
                         <td>{{ teacher['email'] }}</td>
                         <td>{{ teacher['phone'] }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('delete_teacher', teacher_id=teacher['teacher_id']) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -143,7 +156,12 @@
             <div class="modal-header">Add New Class</div>
             <form method="POST" action="{{ url_for('add_class') }}">
                 <p><label>Class Name:</label><br><input type="text" name="name" required></p>
-                <p><label>Days Attending (comma-separated):</label><br><input type="text" name="days_attending" placeholder="e.g., Monday, Wednesday"></p>
+                <p><label>Days Attending:</label><br>
+                    <input type="checkbox" name="days_attending" value="Monday"> Monday<br>
+                    <input type="checkbox" name="days_attending" value="Tuesday"> Tuesday<br>
+                    <input type="checkbox" name="days_attending" value="Wednesday"> Wednesday<br>
+                    <input type="checkbox" name="days_attending" value="Thursday"> Thursday
+                </p>
                 <p><label>Additional Costs ($):</label><br><input type="number" name="additional_costs" step="0.01" min="0"></p>
                 <p>
                     <label>Teacher:</label><br>
@@ -198,7 +216,12 @@
             <form method="POST" action="{{ url_for('edit_class') }}">
                 <input type="hidden" id="edit_class_id" name="class_id">
                 <p><label>Class Name:</label><br><input type="text" id="edit_name" name="name" required></p>
-                <p><label>Days Attending (comma-separated):</label><br><input type="text" id="edit_days_attending" name="days_attending" placeholder="e.g., Monday, Wednesday"></p>
+                <p><label>Days Attending:</label><br>
+                    <input type="checkbox" name="days_attending" value="Monday" id="edit_monday"> Monday<br>
+                    <input type="checkbox" name="days_attending" value="Tuesday" id="edit_tuesday"> Tuesday<br>
+                    <input type="checkbox" name="days_attending" value="Wednesday" id="edit_wednesday"> Wednesday<br>
+                    <input type="checkbox" name="days_attending" value="Thursday" id="edit_thursday"> Thursday
+                </p>
                 <p><label>Additional Costs ($):</label><br><input type="number" id="edit_additional_costs" name="additional_costs" step="0.01" min="0"></p>
                 <p>
                     <label>Teacher:</label><br>
@@ -234,14 +257,26 @@
         </div>
     </div>
     <script>
-    function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId) {
-        document.getElementById('editClassModal').style.display = 'block';
-        document.getElementById('edit_class_id').value = classId;
-        document.getElementById('edit_name').value = name;
-        document.getElementById('edit_days_attending').value = daysAttending;
-        document.getElementById('edit_additional_costs').value = additionalCosts;
-        document.getElementById('edit_teacher_id').value = teacherId || '';
-    }
-</script>
+        function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId) {
+            document.getElementById('editClassModal').style.display = 'block';
+            document.getElementById('edit_class_id').value = classId;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_additional_costs').value = additionalCosts;
+            document.getElementById('edit_teacher_id').value = teacherId || '';
+            // Reset checkboxes
+            document.getElementById('edit_monday').checked = false;
+            document.getElementById('edit_tuesday').checked = false;
+            document.getElementById('edit_wednesday').checked = false;
+            document.getElementById('edit_thursday').checked = false;
+            // Check current days
+            let days = daysAttending.split(', ');
+            days.forEach(day => {
+                if (day === 'Monday') document.getElementById('edit_monday').checked = true;
+                if (day === 'Tuesday') document.getElementById('edit_tuesday').checked = true;
+                if (day === 'Wednesday') document.getElementById('edit_wednesday').checked = true;
+                if (day === 'Thursday') document.getElementById('edit_thursday').checked = true;
+            });
+        }
+    </script>
 </body>
 </html>
