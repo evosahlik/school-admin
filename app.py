@@ -33,7 +33,7 @@ def students():
 def add_student():
     first_name = request.form['first_name']
     last_name = request.form['last_name']
-    grade_level = request.form['grade_level']
+    grade_level = request.form['grade_level'].lower()  # Force lowercase
     parent_name = request.form['parent_name']
     parent_email = request.form['parent_email']
     medicines = request.form['medicines'] or None
@@ -62,7 +62,7 @@ def edit_student():
     student_id = request.form['student_id']
     first_name = request.form['first_name']
     last_name = request.form['last_name']
-    grade_level = request.form['grade_level']
+    grade_level = request.form['grade_level'].lower()  # Force lowercase
     parent_name = request.form['parent_name']
     parent_email = request.form['parent_email']
     medicines = request.form['medicines'] or None
@@ -246,6 +246,30 @@ def delete_classroom(classroom_id):
         return f"Error deleting classroom: {response.error}", 500
     flash('Classroom deleted successfully!')
     return redirect(url_for('classrooms'))
+
+@app.route('/reports')
+def reports():
+    response = supabase.table('students').select('grade_level').execute()
+    students = response.data
+    grade_counts = {'K-2': 0, '3-5': 0, '6-8': 0, '9-12': 0}
+    for student in students:
+        grade = student['grade_level']
+        try:
+            if grade.lower() == 'k':
+                grade_counts['K-2'] += 1
+            else:
+                grade_num = int(grade)
+                if 1 <= grade_num <= 2:
+                    grade_counts['K-2'] += 1
+                elif 3 <= grade_num <= 5:
+                    grade_counts['3-5'] += 1
+                elif 6 <= grade_num <= 8:
+                    grade_counts['6-8'] += 1
+                elif 9 <= grade_num <= 12:
+                    grade_counts['9-12'] += 1
+        except ValueError:
+            continue  # Skip invalid grades
+    return render_template('index.html', grade_counts=grade_counts, active_tab='reports')
 
 if __name__ == '__main__':
     app.run(debug=True)

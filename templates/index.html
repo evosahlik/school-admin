@@ -3,24 +3,22 @@
 <head>
     <title>School Admin</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; }
-        .top-bar { background: #1F2937; color: white; padding: 10px; position: fixed; top: 0; width: 100%; }
-        .sidebar { background: #E5E7EB; width: 200px; position: fixed; top: 40px; bottom: 0; padding: 10px; }
-        .sidebar a { display: block; padding: 8px; text-decoration: none; color: black; }
-        .sidebar a:hover { background: #BFDBFE; }
-        .sidebar a.active { background: #3B82F6; color: white; }
-        .content { margin-left: 220px; margin-top: 50px; padding: 20px; }
+        body { font-family: Arial, sans-serif; margin: 0; display: flex; }
+        .sidebar { width: 200px; background: #f4f4f4; padding: 20px; height: 100vh; position: fixed; }
+        .sidebar a { display: block; padding: 10px; margin: 5px 0; text-decoration: none; color: #333; }
+        .sidebar a.active { background: #007bff; color: white; border-radius: 5px; }
+        .content { margin-left: 220px; padding: 20px; width: calc(100% - 220px); }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #D1D5DB; padding: 8px; }
-        th { background: #D1D5DB; }
-        tr:hover { background: #EFF6FF; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        .btn { padding: 8px 12px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: #FFF; width: 400px; margin: 100px auto; padding: 20px; border: 1px solid #888; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
-        .modal-header { background: #F0F0F0; padding: 5px; font-weight: bold; }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; width: 50%; border-radius: 5px; }
+        .modal-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
         .modal-footer { margin-top: 20px; text-align: right; }
-        .btn { padding: 5px 10px; cursor: pointer; }
-        .btn-primary { background: #0078D7; color: white; border: none; }
-        .btn-secondary { background: #D0D0D0; border: 1px solid #888; }
+        .flash { background: #d4edda; color: #155724; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -29,6 +27,7 @@
         <a href="{{ url_for('classes') }}" class="{% if active_tab == 'classes' %}active{% endif %}">📚 Classes</a>
         <a href="{{ url_for('teachers') }}" class="{% if active_tab == 'teachers' %}active{% endif %}">👩‍🏫 Teachers</a>
         <a href="{{ url_for('classrooms') }}" class="{% if active_tab == 'classrooms' %}active{% endif %}">🏫 Classrooms</a>
+        <a href="{{ url_for('reports') }}" class="{% if active_tab == 'reports' %}active{% endif %}">📊 Reports</a>
     </div>
     <div class="content">
         {% with messages = get_flashed_messages() %}
@@ -40,44 +39,44 @@
         {% endwith %}
 
         {% if active_tab == 'students' %}
-    <h1>Students</h1>
-    <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Grade Level</th>
-                <th>Parent Name</th>
-                <th>Parent Email</th>
-                <th>Allergies</th>
-                <th>Medicines</th>
-                <th>Medical Conditions</th>
-                <th>Comments</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for student in students %}
-            <tr>
-                <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
-                <td>{{ student['grade_level'] }}</td>
-                <td>{{ student['parent_name'] }}</td>
-                <td>{{ student['parent_email'] }}</td>
-                <td>{{ student['allergies'] }}</td>
-                <td>{{ student['medicines'] }}</td>
-                <td>{{ student['medical_conditions'] }}</td>
-                <td>{{ student['comments'] }}</td>
-                <td>
-                    <button class="btn btn-primary" onclick="openEditStudentModal('{{ student['student_id'] }}', '{{ student['first_name'] }}', '{{ student['last_name'] }}', '{{ student['grade_level'] }}', '{{ student['parent_name'] }}', '{{ student['parent_email'] }}', '{{ student['allergies'] }}', '{{ student['medicines'] }}', '{{ student['medical_conditions'] }}', '{{ student['comments'] }}')">Edit</button>
-                    <form method="POST" action="{{ url_for('delete_student', student_id=student['student_id']) }}" style="display:inline;">
-                        <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% elif active_tab == 'classes' %}
+            <h1>Students</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('addStudentModal').style.display='block'">Add Student</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Grade Level</th>
+                        <th>Parent Name</th>
+                        <th>Parent Email</th>
+                        <th>Allergies</th>
+                        <th>Medicines</th>
+                        <th>Medical Conditions</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student['first_name'] }} {{ student['last_name'] }}</td>
+                        <td>{{ student['grade_level'] }}</td>
+                        <td>{{ student['parent_name'] }}</td>
+                        <td>{{ student['parent_email'] }}</td>
+                        <td>{{ student['allergies'] }}</td>
+                        <td>{{ student['medicines'] }}</td>
+                        <td>{{ student['medical_conditions'] }}</td>
+                        <td>{{ student['comments'] }}</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="openEditStudentModal('{{ student['student_id'] }}', '{{ student['first_name'] }}', '{{ student['last_name'] }}', '{{ student['grade_level'] }}', '{{ student['parent_name'] }}', '{{ student['parent_email'] }}', '{{ student['allergies'] }}', '{{ student['medicines'] }}', '{{ student['medical_conditions'] }}', '{{ student['comments'] }}')">Edit</button>
+                            <form method="POST" action="{{ url_for('delete_student', student_id=student['student_id']) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% elif active_tab == 'classes' %}
             <h1>Classes</h1>
             <button class="btn btn-primary" onclick="document.getElementById('addClassModal').style.display='block'">Add Class</button>
             <button class="btn btn-primary" onclick="document.getElementById('enrollStudentModal').style.display='block'">Enroll Student</button>
@@ -168,10 +167,54 @@
                     {% endfor %}
                 </tbody>
             </table>
+        {% elif active_tab == 'reports' %}
+            <h1>Reports</h1>
+            <h2>Student Grade Summary</h2>
+            <button class="btn btn-primary" onclick="window.print()">Print Report</button>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Grade Band</th>
+                        <th>Student Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>K-2</td>
+                        <td>{{ grade_counts['K-2'] }}</td>
+                    </tr>
+                    <tr>
+                        <td>3-5</td>
+                        <td>{{ grade_counts['3-5'] }}</td>
+                    </tr>
+                    <tr>
+                        <td>6-8</td>
+                        <td>{{ grade_counts['6-8'] }}</td>
+                    </tr>
+                    <tr>
+                        <td>9-12</td>
+                        <td>{{ grade_counts['9-12'] }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <style>
+                @media print {
+                    .sidebar, .btn, h1, h2 { display: none; }
+                    .content { margin: 0; }
+                    .report-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+                    .report-table th, .report-table td {
+                        border: 1px solid black;
+                        padding: 8px;
+                        text-align: left;
+                    }
+                }
+            </style>
         {% endif %}
     </div>
 
-    <!-- Modals go here -->
     <!-- Add Student Modal -->
     <div id="addStudentModal" class="modal">
         <div class="modal-content">
@@ -179,7 +222,7 @@
             <form method="POST" action="{{ url_for('add_student') }}">
                 <p><label>First Name:</label><br><input type="text" name="first_name" required></p>
                 <p><label>Last Name:</label><br><input type="text" name="last_name" required></p>
-                <p><label>Grade Level:</label><br><input type="text" name="grade_level" placeholder="e.g., 5" required></p>
+                <p><label>Grade Level:</label><br><input type="text" name="grade_level" id="grade_level" oninput="this.value = this.value.toLowerCase()" placeholder="e.g., k, 5" required></p>
                 <p><label>Parent Name:</label><br><input type="text" name="parent_name" required></p>
                 <p><label>Parent Email:</label><br><input type="email" name="parent_email" required></p>
                 <p><label>Allergies:</label><br><input type="text" name="allergies" placeholder="e.g., Peanuts, Latex"></p>
@@ -202,7 +245,7 @@
                 <input type="hidden" id="edit_student_id" name="student_id">
                 <p><label>First Name:</label><br><input type="text" id="edit_first_name" name="first_name" required></p>
                 <p><label>Last Name:</label><br><input type="text" id="edit_last_name" name="last_name" required></p>
-                <p><label>Grade Level:</label><br><input type="text" id="edit_grade_level" name="grade_level" required></p>
+                <p><label>Grade Level:</label><br><input type="text" id="edit_grade_level" name="grade_level" oninput="this.value = this.value.toLowerCase()" placeholder="e.g., k, 5" required></p>
                 <p><label>Parent Name:</label><br><input type="text" id="edit_parent_name" name="parent_name" required></p>
                 <p><label>Parent Email:</label><br><input type="email" id="edit_parent_email" name="parent_email" required></p>
                 <p><label>Allergies:</label><br><input type="text" id="edit_allergies" name="allergies" placeholder="e.g., Peanuts, Latex"></p>
@@ -222,29 +265,27 @@
         <div class="modal-content">
             <div class="modal-header">Add New Class</div>
             <form method="POST" action="{{ url_for('add_class') }}">
-                <p><label>Class Name:</label><br><input type="text" name="name" required></p>
+                <p><label>Name:</label><br><input type="text" name="name" required></p>
                 <p><label>Days Attending:</label><br>
-                    <input type="checkbox" name="days_attending" value="Monday"> Monday<br>
-                    <input type="checkbox" name="days_attending" value="Tuesday"> Tuesday<br>
-                    <input type="checkbox" name="days_attending" value="Wednesday"> Wednesday<br>
+                    <input type="checkbox" name="days_attending" value="Monday"> Monday
+                    <input type="checkbox" name="days_attending" value="Tuesday"> Tuesday
+                    <input type="checkbox" name="days_attending" value="Wednesday"> Wednesday
                     <input type="checkbox" name="days_attending" value="Thursday"> Thursday
                 </p>
-                <p><label>Additional Costs ($):</label><br><input type="number" name="additional_costs" step="0.01" min="0"></p>
-                <p>
-                    <label>Teacher:</label><br>
+                <p><label>Additional Costs:</label><br><input type="number" name="additional_costs" step="0.01" min="0"></p>
+                <p><label>Teacher:</label><br>
                     <select name="teacher_id">
                         <option value="">None</option>
                         {% for teacher in teachers %}
-                        <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
+                            <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
                         {% endfor %}
                     </select>
                 </p>
-                <p>
-                    <label>Classroom:</label><br>
+                <p><label>Classroom:</label><br>
                     <select name="classroom_id">
                         <option value="">None</option>
                         {% for classroom in classrooms %}
-                        <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
+                            <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
                         {% endfor %}
                     </select>
                 </p>
@@ -256,64 +297,33 @@
         </div>
     </div>
 
-    <!-- Enroll Student Modal -->
-    <div id="enrollStudentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">Enroll Student in Class</div>
-            <form method="POST" action="{{ url_for('enroll_student') }}">
-                <p>
-                    <label>Class:</label><br>
-                    <select name="class_id" required>
-                        {% for class in classes %}
-                        <option value="{{ class['class_id'] }}">{{ class['name'] }}</option>
-                        {% endfor %}
-                    </select>
-                </p>
-                <p>
-                    <label>Student:</label><br>
-                    <select name="student_id" required>
-                        {% for student in students %}
-                        <option value="{{ student['student_id'] }}">{{ student['first_name'] }} {{ student['last_name'] }}</option>
-                        {% endfor %}
-                    </select>
-                </p>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">OK</button>
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('enrollStudentModal').style.display='none'">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Edit Class Modal -->
     <div id="editClassModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">Edit Class</div>
             <form method="POST" action="{{ url_for('edit_class') }}">
                 <input type="hidden" id="edit_class_id" name="class_id">
-                <p><label>Class Name:</label><br><input type="text" id="edit_name" name="name" required></p>
+                <p><label>Name:</label><br><input type="text" id="edit_name" name="name" required></p>
                 <p><label>Days Attending:</label><br>
-                    <input type="checkbox" name="days_attending" value="Monday" id="edit_monday"> Monday<br>
-                    <input type="checkbox" name="days_attending" value="Tuesday" id="edit_tuesday"> Tuesday<br>
-                    <input type="checkbox" name="days_attending" value="Wednesday" id="edit_wednesday"> Wednesday<br>
-                    <input type="checkbox" name="days_attending" value="Thursday" id="edit_thursday"> Thursday
+                    <input type="checkbox" id="edit_monday" name="days_attending" value="Monday"> Monday
+                    <input type="checkbox" id="edit_tuesday" name="days_attending" value="Tuesday"> Tuesday
+                    <input type="checkbox" id="edit_wednesday" name="days_attending" value="Wednesday"> Wednesday
+                    <input type="checkbox" id="edit_thursday" name="days_attending" value="Thursday"> Thursday
                 </p>
-                <p><label>Additional Costs ($):</label><br><input type="number" id="edit_additional_costs" name="additional_costs" step="0.01" min="0"></p>
-                <p>
-                    <label>Teacher:</label><br>
+                <p><label>Additional Costs:</label><br><input type="number" id="edit_additional_costs" name="additional_costs" step="0.01" min="0"></p>
+                <p><label>Teacher:</label><br>
                     <select id="edit_teacher_id" name="teacher_id">
                         <option value="">None</option>
                         {% for teacher in teachers %}
-                        <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
+                            <option value="{{ teacher['teacher_id'] }}">{{ teacher['first_name'] }} {{ teacher['last_name'] }}</option>
                         {% endfor %}
                     </select>
                 </p>
-                <p>
-                    <label>Classroom:</label><br>
+                <p><label>Classroom:</label><br>
                     <select id="edit_classroom_id" name="classroom_id">
                         <option value="">None</option>
                         {% for classroom in classrooms %}
-                        <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
+                            <option value="{{ classroom['classroom_id'] }}">{{ classroom['name'] }}</option>
                         {% endfor %}
                     </select>
                 </p>
@@ -325,7 +335,32 @@
         </div>
     </div>
 
-
+    <!-- Enroll Student Modal -->
+    <div id="enrollStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Enroll Student</div>
+            <form method="POST" action="{{ url_for('enroll_student') }}">
+                <p><label>Student:</label><br>
+                    <select name="student_id" required>
+                        {% for student in students %}
+                            <option value="{{ student['student_id'] }}">{{ student['first_name'] }} {{ student['last_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p><label>Class:</label><br>
+                    <select name="class_id" required>
+                        {% for class in classes %}
+                            <option value="{{ class['class_id'] }}">{{ class['name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('enrollStudentModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Add Teacher Modal -->
     <div id="addTeacherModal" class="modal">
@@ -335,7 +370,7 @@
                 <p><label>First Name:</label><br><input type="text" name="first_name" required></p>
                 <p><label>Last Name:</label><br><input type="text" name="last_name" required></p>
                 <p><label>Email:</label><br><input type="email" name="email" required></p>
-                <p><label>Phone:</label><br><input type="text" name="phone" id="phoneInput" oninput="formatPhoneInput(this)"></p>
+                <p><label>Phone:</label><br><input type="text" name="phone" oninput="formatPhoneInput(this)" placeholder="(xxx)xxx-xxxx"></p>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">OK</button>
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTeacherModal').style.display='none'">Cancel</button>
