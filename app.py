@@ -25,17 +25,18 @@ def index():
 
 @app.route('/students')
 def students():
-    response = supabase.table('students').select('*').execute()
-    students = response.data
-    return render_template('index.html', students=students, active_tab='students')
+    student_response = supabase.table('students').select('*, parents(first_name, last_name)').execute()
+    parent_response = supabase.table('parents').select('*').execute()
+    students = student_response.data
+    parents = parent_response.data
+    return render_template('index.html', students=students, parents=parents, active_tab='students')
 
 @app.route('/add_student', methods=['POST'])
 def add_student():
     first_name = request.form['first_name']
     last_name = request.form['last_name']
-    grade_level = request.form['grade_level'].lower()  # Force lowercase
-    parent_name = request.form['parent_name']
-    parent_email = request.form['parent_email']
+    grade_level = request.form['grade_level'].lower()
+    parent_id = request.form['parent_id'] or None
     medicines = request.form['medicines'] or None
     allergies = request.form['allergies'] or None
     medical_conditions = request.form['medical_conditions'] or None
@@ -44,8 +45,7 @@ def add_student():
         'first_name': first_name,
         'last_name': last_name,
         'grade_level': grade_level,
-        'parent_name': parent_name,
-        'parent_email': parent_email,
+        'parent_id': parent_id,
         'medicines': medicines,
         'allergies': allergies,
         'medical_conditions': medical_conditions,
@@ -62,9 +62,8 @@ def edit_student():
     student_id = request.form['student_id']
     first_name = request.form['first_name']
     last_name = request.form['last_name']
-    grade_level = request.form['grade_level'].lower()  # Force lowercase
-    parent_name = request.form['parent_name']
-    parent_email = request.form['parent_email']
+    grade_level = request.form['grade_level'].lower()
+    parent_id = request.form['parent_id'] or None
     medicines = request.form['medicines'] or None
     allergies = request.form['allergies'] or None
     medical_conditions = request.form['medical_conditions'] or None
@@ -73,8 +72,7 @@ def edit_student():
         'first_name': first_name,
         'last_name': last_name,
         'grade_level': grade_level,
-        'parent_name': parent_name,
-        'parent_email': parent_email,
+        'parent_id': parent_id,
         'medicines': medicines,
         'allergies': allergies,
         'medical_conditions': medical_conditions,
@@ -85,6 +83,65 @@ def edit_student():
         return f"Error updating student: {response.error}", 500
     flash('Student updated successfully!')
     return redirect(url_for('students'))
+
+@app.route('/parents')
+def parents():
+    parent_response = supabase.table('parents').select('*, students(first_name, last_name)').execute()
+    parents = parent_response.data
+    # Log parent IDs for debugging
+    for parent in parents:
+        if not parent.get('parent_id'):
+            print(f"Warning: Parent {parent.get('first_name', 'Unknown')} {parent.get('last_name', '')} has no parent_id")
+    return render_template('index.html', parents=parents, active_tab='parents')
+
+@app.route('/add_parent', methods=['POST'])
+def add_parent():
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    phone = request.form['phone'] or None
+    data = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'phone': phone
+    }
+    response = supabase.table('parents').insert(data).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error adding parent: {response.error}", 500
+    flash('Parent added successfully!')
+    return redirect(url_for('parents'))
+
+@app.route('/edit_parent', methods=['POST'])
+def edit_parent():
+    parent_id = request.form.get('parent_id')
+    if not parent_id:
+        flash('Error: No parent ID provided.')
+        return redirect(url_for('parents'))
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    phone = request.form['phone'] or None
+    data = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'phone': phone
+    }
+    try:
+        response = supabase.table('parents').update(data).eq('parent_id', parent_id).execute()
+        if hasattr(response, 'error') and response.error:
+            return f"Error updating parent: {response.error}", 500
+        flash('Parent updated successfully!')
+    except Exception as e:
+        flash(f"Error updating parent: {str(e)}")
+        return redirect(url_for('parents'))
+    return redirect(url_for('parents'))
+
+@app.route('/delete_parent/<parent_id>', methods=['POST'])
+def delete_parent(parent_id):
+    supabase.table('students').update({'parent_id': None}).eq('parent_id', parent_id).execute()
+    response = supabase.table('parents').delete().eq('parent_id', parent_id).execute()
+    if hasattr(response, 'error') and response.error:
+        return f"Error deleting parent: {response.error}", 500
+    flash('Parent deleted successfully!')
+    return redirect(url_for('parents'))
 
 @app.route('/classes')
 def classes():
@@ -98,7 +155,9 @@ def classes():
     teachers = teacher_response.data
     classroom_response = supabase.table('classrooms').select('*').execute()
     classrooms = classroom_response.data
-    return render_template('index.html', classes=classes, enrollments=enrollments, students=students, teachers=teachers, classrooms=classrooms, active_tab='classes')
+    parent_response = supabase.table('parents').select('*').execute()
+    parents = parent_response.data
+    return render_template('index.html', classes=classes, enrollments=enrollments, students=students, teachers=teachers, classrooms=classrooms, parents=parents, active_tab='classes')
 
 @app.route('/add_class', methods=['POST'])
 def add_class():
@@ -146,7 +205,9 @@ def enroll_student():
 def teachers():
     response = supabase.table('teachers').select('*').execute()
     teachers = response.data
-    return render_template('index.html', teachers=teachers, active_tab='teachers')
+    parent_response = supabase.table('parents').select('*').execute()
+    parents = parent_response.data
+    return render_template('index.html', teachers=teachers, parents=parents, active_tab='teachers')
 
 @app.route('/add_teacher', methods=['POST'])
 def add_teacher():
@@ -222,7 +283,9 @@ def delete_student(student_id):
 def classrooms():
     response = supabase.table('classrooms').select('*').execute()
     classrooms = response.data
-    return render_template('index.html', classrooms=classrooms, active_tab='classrooms')
+    parent_response = supabase.table('parents').select('*').execute()
+    parents = parent_response.data
+    return render_template('index.html', classrooms=classrooms, parents=parents, active_tab='classrooms')
 
 @app.route('/add_classroom', methods=['POST'])
 def add_classroom():
@@ -251,6 +314,8 @@ def delete_classroom(classroom_id):
 def reports():
     response = supabase.table('students').select('grade_level').execute()
     students = response.data
+    parent_response = supabase.table('parents').select('*').execute()
+    parents = parent_response.data
     grade_counts = {'K-2': 0, '3-5': 0, '6-8': 0, '9-12': 0}
     for student in students:
         grade = student['grade_level']
@@ -268,8 +333,8 @@ def reports():
                 elif 9 <= grade_num <= 12:
                     grade_counts['9-12'] += 1
         except ValueError:
-            continue  # Skip invalid grades
-    return render_template('index.html', grade_counts=grade_counts, active_tab='reports')
+            continue
+    return render_template('index.html', grade_counts=grade_counts, parents=parents, active_tab='reports')
 
 if __name__ == '__main__':
     app.run(debug=True)
