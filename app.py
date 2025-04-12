@@ -81,14 +81,13 @@ def edit_student():
     response = supabase.table('students').update(data).eq('student_id', student_id).execute()
     if hasattr(response, 'error') and response.error:
         return f"Error updating student: {response.error}", 500
-    flash('Student updated successfully!')
+    flash('Parent updated successfully!')
     return redirect(url_for('students'))
 
 @app.route('/parents')
 def parents():
     parent_response = supabase.table('parents').select('*, students(first_name, last_name)').execute()
     parents = parent_response.data
-    # Log parent IDs for debugging
     for parent in parents:
         if not parent.get('parent_id'):
             print(f"Warning: Parent {parent.get('first_name', 'Unknown')} {parent.get('last_name', '')} has no parent_id")
@@ -98,10 +97,12 @@ def parents():
 def add_parent():
     first_name = request.form['first_name']
     last_name = request.form['last_name']
+    email = request.form['email'] or None
     phone = request.form['phone'] or None
     data = {
         'first_name': first_name,
         'last_name': last_name,
+        'email': email,
         'phone': phone
     }
     response = supabase.table('parents').insert(data).execute()
@@ -112,24 +113,31 @@ def add_parent():
 
 @app.route('/edit_parent', methods=['POST'])
 def edit_parent():
-    parent_id = request.form.get('parent_id')
-    if not parent_id:
+    parent_id = request.form.get('parent_id') or request.form.get('parent_id_fallback')
+    print('Received form data:', dict(request.form))
+    if not parent_id or parent_id.strip() == '':
         flash('Error: No parent ID provided.')
+        print('Edit parent failed: Invalid parent_id', parent_id, dict(request.form))
         return redirect(url_for('parents'))
     first_name = request.form['first_name']
     last_name = request.form['last_name']
+    email = request.form['email'] or None
     phone = request.form['phone'] or None
     data = {
         'first_name': first_name,
         'last_name': last_name,
+        'email': email,
         'phone': phone
     }
     try:
         response = supabase.table('parents').update(data).eq('parent_id', parent_id).execute()
         if hasattr(response, 'error') and response.error:
+            print(f"Supabase error updating parent: {response.error}")
             return f"Error updating parent: {response.error}", 500
+        print(f"Parent updated successfully: {parent_id}", data)
         flash('Parent updated successfully!')
     except Exception as e:
+        print(f"Exception updating parent: {str(e)}")
         flash(f"Error updating parent: {str(e)}")
         return redirect(url_for('parents'))
     return redirect(url_for('parents'))
