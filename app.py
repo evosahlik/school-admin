@@ -344,5 +344,63 @@ def reports():
             continue
     return render_template('index.html', grade_counts=grade_counts, parents=parents, active_tab='reports')
 
+@app.route('/edit_teacher', methods=['POST'])
+def edit_teacher():
+    teacher_id = request.form.get('teacher_id') or request.form.get('teacher_id_fallback')
+    print('Received form data:', dict(request.form))
+    if not teacher_id or teacher_id.strip() == '':
+        flash('Error: No teacher ID provided.')
+        print('Edit teacher failed: Invalid teacher_id', teacher_id, dict(request.form))
+        return redirect(url_for('teachers'))
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    email = request.form['email'] or None
+    phone = request.form['phone'] or None
+    data = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'email': email,
+        'phone': phone
+    }
+    try:
+        response = supabase.table('teachers').update(data).eq('teacher_id', teacher_id).execute()
+        if hasattr(response, 'error') and response.error:
+            print(f"Supabase error updating teacher: {response.error}")
+            return f"Error updating teacher: {response.error}", 500
+        print(f"Teacher updated successfully: {teacher_id}", data)
+        flash('Teacher updated successfully!')
+    except Exception as e:
+        print(f"Exception updating teacher: {str(e)}")
+        flash(f"Error updating teacher: {str(e)}")
+        return redirect(url_for('teachers'))
+    return redirect(url_for('teachers'))
+
+@app.route('/edit_classroom', methods=['POST'])
+def edit_classroom():
+    classroom_id = request.form.get('classroom_id') or request.form.get('classroom_id_fallback')
+    print('Received form data:', dict(request.form))
+    if not classroom_id or classroom_id.strip() == '':
+        flash('Error: No classroom ID provided.')
+        print('Edit classroom failed: Invalid classroom_id', classroom_id, dict(request.form))
+        return redirect(url_for('classrooms'))
+    name = request.form['name']
+    capacity = int(request.form['capacity'])
+    data = {
+        'name': name,
+        'capacity': capacity
+    }
+    try:
+        response = supabase.table('classrooms').update(data).eq('classroom_id', classroom_id).execute()
+        if hasattr(response, 'error') and response.error:
+            print(f"Supabase error updating classroom: {response.error}")
+            return f"Error updating classroom: {response.error}", 500
+        print(f"Classroom updated successfully: {classroom_id}", data)
+        flash('Classroom updated successfully!')
+    except Exception as e:
+        print(f"Exception updating classroom: {str(e)}")
+        flash(f"Error updating classroom: {str(e)}")
+        return redirect(url_for('classrooms'))
+    return redirect(url_for('classrooms'))
+
 if __name__ == '__main__':
     app.run(debug=True)

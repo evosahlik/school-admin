@@ -148,58 +148,61 @@
                     {% endfor %}
                 </tbody>
             </table>
-        {% elif active_tab == 'teachers' %}
-            <h1>Teachers</h1>
-            <button class="btn btn-primary" onclick="document.getElementById('addTeacherModal').style.display='block'">Add Teacher</button>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for teacher in teachers %}
-                    <tr>
-                        <td>{{ teacher['first_name'] }} {{ teacher['last_name'] }}</td>
-                        <td>{{ teacher['email'] }}</td>
-                        <td>{{ teacher['phone']|format_phone }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_teacher', teacher_id=teacher['teacher_id']) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% elif active_tab == 'classrooms' %}
-            <h1>Classrooms</h1>
-            <button class="btn btn-primary" onclick="document.getElementById('addClassroomModal').style.display='block'">Add Classroom</button>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Capacity</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for classroom in classrooms %}
-                    <tr>
-                        <td>{{ classroom['name'] }}</td>
-                        <td>{{ classroom['capacity'] }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_classroom', classroom_id=classroom['classroom_id']) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Teachers Table -->
+    {% elif active_tab == 'teachers' %}
+        <h1>Teachers</h1>
+        <button class="btn btn-primary" onclick="document.getElementById('addTeacherModal').style.display='block'">Add Teacher</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                    <td>{{ teacher['first_name'] }} {{ teacher['last_name'] }}</td>
+                    <td>{{ teacher['email'] }}</td>
+                    <td>{{ teacher['phone']|format_phone }}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="openEditTeacherModal('{{ teacher['teacher_id'] }}', '{{ teacher['first_name']|e }}', '{{ teacher['last_name']|e }}', '{{ teacher['email']|e if teacher['email'] else '' }}', '{{ teacher['phone']|e }}')">Edit</button>
+                        <form method="POST" action="{{ url_for('delete_teacher', teacher_id=teacher['teacher_id']) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif active_tab == 'classrooms' %}
+        <h1>Classrooms</h1>
+        <button class="btn btn-primary" onclick="document.getElementById('addClassroomModal').style.display='block'">Add Classroom</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Capacity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for classroom in classrooms %}
+                <tr>
+                    <td>{{ classroom['name'] }}</td>
+                    <td>{{ classroom['capacity'] }}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="openEditClassroomModal('{{ classroom['classroom_id'] }}', '{{ classroom['name']|e }}', '{{ classroom['capacity'] }}')">Edit</button>
+                        <form method="POST" action="{{ url_for('delete_classroom', classroom_id=classroom['classroom_id']) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% elif active_tab == 'reports' %}
             <h1>Reports</h1>
             <h2>Student Grade Summary</h2>
@@ -475,6 +478,42 @@
         </div>
     </div>
 
+    <!-- Edit Teacher Modal -->
+    <div id="editTeacherModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Teacher</div>
+            <form method="POST" action="{{ url_for('edit_teacher') }}" id="editTeacherForm">
+                <input type="hidden" id="edit_teacher_id" name="teacher_id" value="">
+                <input type="hidden" id="edit_teacher_id_fallback" name="teacher_id_fallback" value="">
+                <p><label>First Name:</label><br><input type="text" id="edit_teacher_first_name" name="first_name" required></p>
+                <p><label>Last Name:</label><br><input type="text" id="edit_teacher_last_name" name="last_name" required></p>
+                <p><label>Email:</label><br><input type="email" id="edit_teacher_email" name="email" required></p>
+                <p><label>Phone:</label><br><input type="text" id="edit_teacher_phone" name="phone" oninput="formatPhoneInput(this)" placeholder="(xxx)xxx-xxxx"></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('editTeacherModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Classroom Modal -->
+    <div id="editClassroomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Classroom</div>
+            <form method="POST" action="{{ url_for('edit_classroom') }}" id="editClassroomForm">
+                <input type="hidden" id="edit_classroom_id" name="classroom_id" value="">
+                <input type="hidden" id="edit_classroom_id_fallback" name="classroom_id_fallback" value="">
+                <p><label>Name:</label><br><input type="text" id="edit_classroom_name" name="name" required></p>
+                <p><label>Capacity:</label><br><input type="number" id="edit_classroom_capacity" name="capacity" min="1" required></p>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">OK</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('editClassroomModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         function openEditClassModal(classId, name, daysAttending, additionalCosts, teacherId, classroomId) {
             document.getElementById('editClassModal').style.display = 'block';
@@ -519,6 +558,140 @@
             document.getElementById('edit_comments').value = comments || '';
         }
 
+        function openEditTeacherModal(teacherId, firstName, lastName, email, phone) {
+            console.log('Opening editTeacherModal with:', { teacherId, firstName, lastName, email, phone });
+            if (!teacherId) {
+                alert('Error: No teacher ID provided for editing.');
+                return;
+            }
+            try {
+                const modal = document.getElementById('editTeacherModal');
+                const form = document.getElementById('editTeacherForm');
+                const teacherIdInput = document.getElementById('edit_teacher_id');
+                const teacherIdFallback = document.getElementById('edit_teacher_id_fallback');
+                const firstNameInput = document.getElementById('edit_teacher_first_name');
+                const lastNameInput = document.getElementById('edit_teacher_last_name');
+                const emailInput = document.getElementById('edit_teacher_email');
+                const phoneInput = document.getElementById('edit_teacher_phone');
+        
+                if (!teacherIdInput || !teacherIdFallback || !firstNameInput || !lastNameInput || !emailInput || !phoneInput) {
+                    console.error('Missing input elements:', {
+                        teacherIdInput: !!teacherIdInput,
+                        teacherIdFallback: !!teacherIdFallback,
+                        firstNameInput: !!firstNameInput,
+                        lastNameInput: !!lastNameInput,
+                        emailInput: !!emailInput,
+                        phoneInput: !!phoneInput
+                    });
+                    alert('Error: Form inputs not found.');
+                    return;
+                }
+        
+                modal.style.display = 'block';
+                form.reset();
+        
+                console.log('Setting teacherId:', teacherId);
+                teacherIdInput.value = teacherId;
+                console.log('Setting teacherIdFallback:', teacherId);
+                teacherIdFallback.value = teacherId;
+                console.log('Setting firstName:', firstName || '');
+                firstNameInput.value = firstName || '';
+                console.log('Setting lastName:', lastName || '');
+                lastNameInput.value = lastName || '';
+                console.log('Setting email:', email || '');
+                emailInput.value = email || '';
+                console.log('Setting phone:', phone || '');
+                phoneInput.value = phone || '';
+        
+                console.log('Final fields:', {
+                    teacherId: teacherIdInput.value,
+                    teacherIdFallback: teacherIdFallback.value,
+                    firstName: firstNameInput.value,
+                    lastName: lastNameInput.value,
+                    email: emailInput.value,
+                    phone: phoneInput.value
+                });
+        
+                form.onsubmit = function(event) {
+                    console.log('Before submit, fields:', {
+                        teacherId: teacherIdInput.value,
+                        teacherIdFallback: teacherIdFallback.value,
+                        firstName: firstNameInput.value,
+                        lastName: lastNameInput.value,
+                        email: emailInput.value,
+                        phone: phoneInput.value
+                    });
+                    const formData = new FormData(form);
+                    console.log('Submitting editTeacherModal form:', Object.fromEntries(formData));
+                    return true;
+                };
+            } catch (error) {
+                console.error('Error in openEditTeacherModal:', error);
+                alert('Error opening edit modal: ' + error.message);
+            }
+        }
+
+        function openEditClassroomModal(classroomId, name, capacity) {
+            console.log('Opening editClassroomModal with:', { classroomId, name, capacity });
+            if (!classroomId) {
+                alert('Error: No classroom ID provided for editing.');
+                return;
+            }
+            try {
+                const modal = document.getElementById('editClassroomModal');
+                const form = document.getElementById('editClassroomForm');
+                const classroomIdInput = document.getElementById('edit_classroom_id');
+                const classroomIdFallback = document.getElementById('edit_classroom_id_fallback');
+                const nameInput = document.getElementById('edit_classroom_name');
+                const capacityInput = document.getElementById('edit_classroom_capacity');
+        
+                if (!classroomIdInput || !classroomIdFallback || !nameInput || !capacityInput) {
+                    console.error('Missing input elements:', {
+                        classroomIdInput: !!classroomIdInput,
+                        classroomIdFallback: !!classroomIdFallback,
+                        nameInput: !!nameInput,
+                        capacityInput: !!capacityInput
+                    });
+                    alert('Error: Form inputs not found.');
+                    return;
+                }
+        
+                modal.style.display = 'block';
+                form.reset();
+        
+                console.log('Setting classroomId:', classroomId);
+                classroomIdInput.value = classroomId;
+                console.log('Setting classroomIdFallback:', classroomId);
+                classroomIdFallback.value = classroomId;
+                console.log('Setting name:', name || '');
+                nameInput.value = name || '';
+                console.log('Setting capacity:', capacity || '');
+                capacityInput.value = capacity || '';
+        
+                console.log('Final fields:', {
+                    classroomId: classroomIdInput.value,
+                    classroomIdFallback: classroomIdFallback.value,
+                    name: nameInput.value,
+                    capacity: capacityInput.value
+                });
+        
+                form.onsubmit = function(event) {
+                    console.log('Before submit, fields:', {
+                        classroomId: classroomIdInput.value,
+                        classroomIdFallback: classroomIdFallback.value,
+                        name: nameInput.value,
+                        capacity: capacityInput.value
+                    });
+                    const formData = new FormData(form);
+                    console.log('Submitting editClassroomModal form:', Object.fromEntries(formData));
+                    return true;
+                };
+            } catch (error) {
+                console.error('Error in openEditClassroomModal:', error);
+                alert('Error opening edit modal: ' + error.message);
+            }
+        }
+        
         function openEditParentModal(parentId, firstName, lastName, email, phone) {
             console.log('Opening editParentModal with:', { parentId, firstName, lastName, email, phone });
             if (!parentId) {
