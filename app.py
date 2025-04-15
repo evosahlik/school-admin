@@ -21,7 +21,25 @@ app.jinja_env.filters['format_phone'] = format_phone
 
 @app.route('/')
 def index():
-    return redirect(url_for('students'))
+    try:
+        students_response = supabase.table('students').select('student_id, first_name, last_name, parent_id').execute()
+        students_data = students_response.data if hasattr(students_response, 'data') else []
+        
+        parents_response = supabase.table('parents').select('parent_id, first_name, last_name').execute()
+        parents_data = parents_response.data if hasattr(parents_response, 'data') else []
+        
+        parent_map = {p['parent_id']: p for p in parents_data}
+        
+        for student in students_data:
+            parent = parent_map.get(student['parent_id'], {})
+            student['parent_first_name'] = parent.get('first_name', '')
+            student['parent_last_name'] = parent.get('last_name', '')
+        
+        return render_template('index.html', active_tab='students', students=students_data, parents=parents_data)
+    except Exception as e:
+        print(f"Error fetching students: {str(e)}")
+        flash(f"Error fetching students: {str(e)}")
+        return render_template('index.html', active_tab='students', students=[], parents=[])
 
 @app.route('/students')
 def students():
@@ -401,6 +419,101 @@ def edit_classroom():
         flash(f"Error updating classroom: {str(e)}")
         return redirect(url_for('classrooms'))
     return redirect(url_for('classrooms'))
+def calculate_student_tuition(grade, days):
+    total = 0
+    if grade == 'Kindergarten':
+        for day, session in days.items():
+            if session == 'whole':
+                total += 2400
+            elif session == 'morning':
+                total += 1600
+    elif grade in ['1', '2']:
+        total += 2400 * len(days)
+    elif grade in ['3', '4', '5', '6', '7', '8']:
+        academic_days = sum(1 for d in days.values() if d == 'academic')
+        enrichment_days = sum(1 for d in days.values() if d == 'enrichment')
+        if academic_days:
+            total += 2800 + (academic_days - 1) * 2300
+        total += enrichment_days * 2300
+    elif grade == 'Highschool':
+        academic_days = sum(1 for d in days.values() if d == 'academic')
+        enrichment_days = sum(1 for d in days.values() if d == 'enrichment')
+        if academic_days:
+            total += 2900 + (academic_days - 1) * 2400
+        total += enrichment_days * 2800
+    return total
 
+def apply_sibling_discount(tuition_data):
+    # Group by parent
+    by_parent = {}
+    for t in tuition_data:
+        parent_id = t['parent_id']
+        if parent_id not in by_parent:
+            by_parent[parent_id] = []
+        by_parent[parent_id].append(t)
+    
+    # Apply discount: first child full, others 10% off
+    for parent_id, siblings in by_parent.items():
+        if len(siblings) > 1:
+            # Sort by amount to charge highest first
+            siblings.sort(key=lambda x: x['total_amount'], reverse=True)
+            for i, sibling in enumerate(siblings):
+                if i > 0:  # First child full price
+                    sibling['total_amount'] *= 0.9
+                    sibling['discounted'] = True
+    return tuition_data
+
+@app.route('/tuition')
+def tuition():
+    try:
+        response = supabase.table('tuition').select('tuition_id, student_id, parent_id, grade, days, total_amount').execute()
+        tuition_data = response.data if hasattr(response, 'data') else []
+        
+        # Join with students and parents
+        students = supabase.table('students').select('student_id, first_name, last_name, parent_id').execute().data
+        parents = supabase.table('parents').select('parent_id, first_name, last_name').execute().data
+        
+        student_map = {s['student_id']: s for s in students}
+        parent_map = {p['parent_id']: p for p in parents}
+        
+        # Enrich data
+        enriched_data = []
+        for t in tuition_data:
+            student = student_map.get(t['student_id'], {})
+            parent = parent_map.get(t['parent_id'], {})
+            t['discounted'] = False  # Flag for discount
+            enriched_data.append({
+                'student_id': t['student_id'],
+                'student_name': f"{student.get('first_name', '')} {student.get('last_name', '')}",
+                'parent_id': t['parent_id'],
+                'parent_name': f"{parent.get('first_name', '')} {parent.get('last_name', '')}",
+                'grade': t['grade'],
+                'days': t['days'],
+                'total_amount': t['total_amount'],
+                'discounted': t['discounted']
+            })
+        
+        # Apply sibling discount
+        enriched_data = apply_sibling_discount(enriched_data)
+        
+        # Summarize per parent
+        parent_totals = {}
+        for t in enriched_data:
+            parent_id = t['parent_id']
+            if parent_id not in parent_totals:
+                parent_totals[parent_id] = {
+                    'parent_name': t['parent_name'],
+                    'total': 0
+                }
+            parent_totals[parent_id]['total'] += t['total_amount']
+        
+        parent_totals = list(parent_totals.values())
+        
+        return render_template('index.html', active_tab='tuition', tuition_data=enriched_data, parent_totals=parent_totals)
+    except Exception as e:
+        print(f"Error fetching tuition: {str(e)}")
+        flash(f"Error fetching tuition: {str(e)}")
+        return render_template('index.html', active_tab='tuition', tuition_data=[], parent_totals=[])
+    
 if __name__ == '__main__':
     app.run(debug=True)
