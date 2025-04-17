@@ -5,4 +5,4 @@ __pycache__/
 .Python
 env/
 venv/
-*.log
+*.log.env 
