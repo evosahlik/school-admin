@@ -151,51 +151,44 @@
                 {% endfor %}
             </tbody>
         </table>
-
-    {% elif active_tab == 'tuition' %}
-        <h1>Tuition</h1>
-        <h2>Per Student</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Student</th>
-                    <th>Parent</th>
-                    <th>Grade</th>
-                    <th>Days</th>
-                    <th>Total ($)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in tuition_data %}
-                <tr>
-                    <td>{{ t.student_name }}</td>
-                    <td>{{ t.parent_name }}</td>
-                    <td>{{ t.grade }}</td>
-                    <td>{{ t.days|tojson|replace('"{', '')|replace('}"', '')|replace('": "', ': ')|replace('", "', ', ') }}</td>
-                    <td>{{ t.total_amount|round(2) }}{% if t.discounted %} (10% sibling discount){% endif %}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <h2>Per Parent</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Parent</th>
-                    <th>Total ($)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in parent_totals %}
-                <tr>
-                    <td>{{ p.parent_name }}</td>
-                    <td>{{ p.total|round(2) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     {% endif %}
 
+    {% if active_tab == 'tuition' %}
+    <div class="tab-pane active">
+        <h2>Tuition</h2>
+        {% if tuition %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Parent Name</th>
+                    <th>Grade</th>
+                    <th>Days</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tuition %}
+                <tr>
+                    <td>{{ t.student_name | default('Unknown Student') }}</td>
+                    <td>{{ t.parent_name | default('Unknown Parent') }}</td>
+                    <td>{{ t.grade }}</td>
+                    <td>{{ t.days | tojson | safe }}</td>
+                    <td>
+                        {{ t.total_amount }}
+                        {% if t.has_sibling_discount %}
+                        (10% sibling discount)
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No tuition records found.</p>
+        {% endif %}
+    </div>
+    {% endif %}
     <!-- Modals -->
     <!-- Add Student Modal -->
     <div id="addStudentModal" class="modal">

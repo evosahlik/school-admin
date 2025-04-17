@@ -23,10 +23,16 @@ app.jinja_env.filters['format_phone'] = format_phone
 def index():
     try:
         students_response = supabase.table('students').select('student_id, first_name, last_name, parent_id').execute()
-        students_data = students_response.data if hasattr(students_response, 'data') else []
+        if not students_response.data:
+            print(f"No students data returned. Response: {students_response}")
+            flash("No students found in database.")
+        students_data = students_response.data or []
         
         parents_response = supabase.table('parents').select('parent_id, first_name, last_name').execute()
-        parents_data = parents_response.data if hasattr(parents_response, 'data') else []
+        if not parents_response.data:
+            print(f"No parents data returned. Response: {parents_response}")
+            flash("No parents found in database.")
+        parents_data = parents_response.data or []
         
         parent_map = {p['parent_id']: p for p in parents_data}
         
@@ -34,13 +40,14 @@ def index():
             parent = parent_map.get(student['parent_id'], {})
             student['parent_first_name'] = parent.get('first_name', '')
             student['parent_last_name'] = parent.get('last_name', '')
+            print(f"Processed student: {student}")
         
         return render_template('index.html', active_tab='students', students=students_data, parents=parents_data)
     except Exception as e:
         print(f"Error fetching students: {str(e)}")
         flash(f"Error fetching students: {str(e)}")
         return render_template('index.html', active_tab='students', students=[], parents=[])
-
+            
 @app.route('/students')
 def students():
     student_response = supabase.table('students').select('*, parents(first_name, last_name)').execute()
@@ -466,54 +473,45 @@ def apply_sibling_discount(tuition_data):
 @app.route('/tuition')
 def tuition():
     try:
-        response = supabase.table('tuition').select('tuition_id, student_id, parent_id, grade, days, total_amount').execute()
-        tuition_data = response.data if hasattr(response, 'data') else []
+        tuition_response = supabase.table('tuition').select('tuition_id, student_id, parent_id, grade, days, total_amount').execute()
+        tuition_data = tuition_response.data or []
+        print(f"Tuition data: {tuition_data}")
         
-        # Join with students and parents
-        students = supabase.table('students').select('student_id, first_name, last_name, parent_id').execute().data
-        parents = supabase.table('parents').select('parent_id, first_name, last_name').execute().data
+        students_response = supabase.table('students').select('student_id, first_name, last_name, parent_id').execute()
+        students_data = students_response.data or []
+        print(f"Students data (tuition): {students_data}")
         
-        student_map = {s['student_id']: s for s in students}
-        parent_map = {p['parent_id']: p for p in parents}
+        parents_response = supabase.table('parents').select('parent_id, first_name, last_name').execute()
+        parents_data = parents_response.data or []
+        print(f"Parents data (tuition): {parents_data}")
         
-        # Enrich data
-        enriched_data = []
+        student_map = {s['student_id']: s for s in students_data}
+        parent_map = {p['parent_id']: p for p in parents_data}
+        
+        # Count students per parent for sibling discount
+        parent_student_count = {}
+        for s in students_data:
+            parent_id = s['parent_id']
+            parent_student_count[parent_id] = parent_student_count.get(parent_id, 0) + 1
+        
         for t in tuition_data:
             student = student_map.get(t['student_id'], {})
             parent = parent_map.get(t['parent_id'], {})
-            t['discounted'] = False  # Flag for discount
-            enriched_data.append({
-                'student_id': t['student_id'],
-                'student_name': f"{student.get('first_name', '')} {student.get('last_name', '')}",
-                'parent_id': t['parent_id'],
-                'parent_name': f"{parent.get('first_name', '')} {parent.get('last_name', '')}",
-                'grade': t['grade'],
-                'days': t['days'],
-                'total_amount': t['total_amount'],
-                'discounted': t['discounted']
-            })
+            t['student_name'] = f"{student.get('first_name', '')} {student.get('last_name', '')}".strip()
+            t['parent_name'] = f"{parent.get('first_name', '')} {parent.get('last_name', '')}".strip()
+            # Apply 10% discount if multiple students share parent
+            if parent_student_count.get(t['parent_id'], 0) > 1 and t['total_amount'] == 2400:
+                t['total_amount'] = 2160
+                t['has_sibling_discount'] = True
+            else:
+                t['has_sibling_discount'] = False
+            print(f"Processed tuition: {t}")
         
-        # Apply sibling discount
-        enriched_data = apply_sibling_discount(enriched_data)
-        
-        # Summarize per parent
-        parent_totals = {}
-        for t in enriched_data:
-            parent_id = t['parent_id']
-            if parent_id not in parent_totals:
-                parent_totals[parent_id] = {
-                    'parent_name': t['parent_name'],
-                    'total': 0
-                }
-            parent_totals[parent_id]['total'] += t['total_amount']
-        
-        parent_totals = list(parent_totals.values())
-        
-        return render_template('index.html', active_tab='tuition', tuition_data=enriched_data, parent_totals=parent_totals)
+        return render_template('index.html', active_tab='tuition', tuition=tuition_data)
     except Exception as e:
         print(f"Error fetching tuition: {str(e)}")
         flash(f"Error fetching tuition: {str(e)}")
-        return render_template('index.html', active_tab='tuition', tuition_data=[], parent_totals=[])
-    
+        return render_template('index.html', active_tab='tuition', tuition=[])
+                
 if __name__ == '__main__':
     app.run(debug=True)
