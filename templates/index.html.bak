@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Admin</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>School Admin</h1>
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'students' %}active{% endif %}" href="{{ url_for('students') }}">Students</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'parents' %}active{% endif %}" href="{{ url_for('parents') }}">Parents</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'tuition' %}active{% endif %}" href="{{ url_for('tuition') }}">Tuition</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'teachers' %}active{% endif %}" href="{{ url_for('teachers') }}">Teachers</a>
+            </li>
+        </ul>
+
+        <!-- Students Tab -->
+        {% if active_tab == 'students' %}
+        <div class="tab-pane active">
+            <h2>Students</h2>
+            <!-- Add Student Form -->
+            <h3>Add Student</h3>
+            <form action="{{ url_for('add_student') }}" method="POST">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" class="form-control" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" class="form-control" name="last_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="grade_level">Grade Level</label>
+                    <select class="form-control" name="grade_level">
+                        <option value="K">K</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="parent_id">Parent</label>
+                    <select class="form-control" name="parent_id">
+                        <option value="">None</option>
+                        {% for p in parents %}
+                        <option value="{{ p.parent_id }}">{{ p.first_name }} {{ p.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="medicines">Medicines</label>
+                    <input type="text" class="form-control" name="medicines">
+                </div>
+                <div class="form-group">
+                    <label for="allergies">Allergies</label>
+                    <input type="text" class="form-control" name="allergies">
+                </div>
+                <div class="form-group">
+                    <label for="medical_conditions">Medical Conditions</label>
+                    <input type="text" class="form-control" name="medical_conditions">
+                </div>
+                <div class="form-group">
+                    <label for="comments">Comments</label>
+                    <textarea class="form-control" name="comments"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Student</button>
+            </form>
+
+            <!-- Students Table -->
+            {% if students %}
+            <h3>Student List</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Grade</th>
+                        <th>Parent Name</th>
+                        <th>Medicines</th>
+                        <th>Allergies</th>
+                        <th>Medical Conditions</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    <tr>
+                        <td>{{ s.first_name }} {{ s.last_name }}</td>
+                        <td>{{ s.grade_level | default('N/A') }}</td>
+                        <td>{{ s.parent_first_name }} {{ s.parent_last_name }}</td>
+                        <td>{{ s.medicines | default('None') }}</td>
+                        <td>{{ s.allergies | default('None') }}</td>
+                        <td>{{ s.medical_conditions | default('None') }}</td>
+                        <td>{{ s.comments | default('None') }}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editStudentModal" 
+                                    data-student='{{ s | tojson | safe }}'>Edit</button>
+                            <form action="{{ url_for('delete_student', student_id=s.student_id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No students found.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Parents Tab -->
+        {% if active_tab == 'parents' %}
+        <div class="tab-pane active">
+            <h2>Parents</h2>
+            <!-- Add Parent Form -->
+            <h3>Add Parent</h3>
+            <form action="{{ url_for('add_parent') }}" method="POST">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" class="form-control" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" class="form-control" name="last_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" class="form-control" name="phone">
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="is_staff" id="is_staff">
+                    <label class="form-check-label" for="is_staff">Is Staff (20% discount)</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Parent</button>
+            </form>
+
+            <!-- Parents Table -->
+            {% if parents %}
+            <h3>Parent List</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Parent Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Staff</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in parents %}
+                    <tr>
+                        <td>{{ p.first_name }} {{ p.last_name }}</td>
+                        <td>{{ p.email | default('N/A') }}</td>
+                        <td>{{ p.phone | format_phone | default('N/A') }}</td>
+                        <td>{{ 'Yes' if p.is_staff else 'No' }}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editParentModal" 
+                                    data-parent='{{ p | tojson | safe }}'>Edit</button>
+                            <form action="{{ url_for('delete_parent', parent_id=p.parent_id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No parents found.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Tuition Tab -->
+        {% if active_tab == 'tuition' %}
+        <div class="tab-pane active">
+            <h2>Tuition</h2>
+            {% if tuition %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Parent Name</th>
+                        <th>Grade</th>
+                        <th>Days</th>
+                        <th>Total Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tuition %}
+                    <tr>
+                        <td>{{ t.student_name | default('Unknown Student') }}</td>
+                        <td>{{ t.parent_name | default('Unknown Parent') }}</td>
+                        <td>{{ t.grade }}</td>
+                        <td>{{ t.days | tojson | safe }}</td>
+                        <td>
+                            {{ t.total_amount }}
+                            {% if t.has_sibling_discount %}
+                            (10% sibling discount)
+                            {% endif %}
+                            {% if t.is_staff %}
+                            (20% staff discount)
+                            {% endif %}
+                            {% if t.paid_in_full %}
+                            (5% paid in full)
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('edit_tuition', tuition_id=t.tuition_id) }}" class="btn btn-primary">Edit</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% elif not tuition_edit %}
+            <p>No tuition records found.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Teachers Tab -->
+        {% if active_tab == 'teachers' %}
+        <div class="tab-pane active">
+            <h2>Teachers</h2>
+            <!-- Add Teacher Form -->
+            <h3>Add Teacher</h3>
+            <form action="{{ url_for('add_teacher') }}" method="POST">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" class="form-control" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" class="form-control" name="last_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" class="form-control" name="phone">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Teacher</button>
+            </form>
+
+            <!-- Teachers Table -->
+            {% if teachers %}
+            <h3>Teacher List</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Teacher Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers %}
+                    <tr>
+                        <td>{{ t.first_name }} {{ t.last_name }}</td>
+                        <td>{{ t.email | default('N/A') }}</td>
+                        <td>{{ t.phone | format_phone | default('N/A') }}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editTeacherModal" 
+                                    data-teacher='{{ t | tojson | safe }}'>Edit</button>
+                            <form action="{{ url_for('delete_teacher', teacher_id=t.teacher_id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No teachers found.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Edit Student Modal -->
+        <div class="modal fade" id="editStudentModal" tabindex="-1" role="dialog" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="{{ url_for('edit_student') }}" method="POST">
+                            <input type="hidden" name="student_id" id="edit_student_id">
+                            <div class="form-group">
+                                <label for="edit_first_name">First Name</label>
+                                <input type="text" class="form-control" name="first_name" id="edit_first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_last_name">Last Name</label>
+                                <input type="text" class="form-control" name="last_name" id="edit_last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_grade_level">Grade Level</label>
+                                <select class="form-control" name="grade_level" id="edit_grade_level">
+                                    <option value="K">K</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_parent_id">Parent</label>
+                                <select class="form-control" name="parent_id" id="edit_parent_id">
+                                    <option value="">None</option>
+                                    {% for p in parents %}
+                                    <option value="{{ p.parent_id }}">{{ p.first_name }} {{ p.last_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_medicines">Medicines</label>
+                                <input type="text" class="form-control" name="medicines" id="edit_medicines">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_allergies">Allergies</label>
+                                <input type="text" class="form-control" name="allergies" id="edit_allergies">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_medical_conditions">Medical Conditions</label>
+                                <input type="text" class="form-control" name="medical_conditions" id="edit_medical_conditions">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_comments">Comments</label>
+                                <textarea class="form-control" name="comments" id="edit_comments"></textarea>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Parent Modal -->
+        <div class="modal fade" id="editParentModal" tabindex="-1" role="dialog" aria-labelledby="editParentModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editParentModalLabel">Edit Parent</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="{{ url_for('edit_parent') }}" method="POST">
+                            <input type="hidden" name="parent_id" id="edit_parent_id">
+                            <div class="form-group">
+                                <label for="edit_parent_first_name">First Name</label>
+                                <input type="text" class="form-control" name="first_name" id="edit_parent_first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_parent_last_name">Last Name</label>
+                                <input type="text" class="form-control" name="last_name" id="edit_parent_last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_parent_email">Email</label>
+                                <input type="email" class="form-control" name="email" id="edit_parent_email">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_parent_phone">Phone</label>
+                                <input type="text" class="form-control" name="phone" id="edit_parent_phone">
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="is_staff" id="edit_parent_is_staff">
+                                <label class="form-check-label" for="edit_parent_is_staff">Is Staff (20% discount)</label>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Teacher Modal -->
+        <div class="modal fade" id="editTeacherModal" tabindex="-1" role="dialog" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editTeacherModalLabel">Edit Teacher</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="{{ url_for('edit_teacher') }}" method="POST">
+                            <input type="hidden" name="teacher_id" id="edit_teacher_id">
+                            <div class="form-group">
+                                <label for="edit_teacher_first_name">First Name</label>
+                                <input type="text" class="form-control" name="first_name" id="edit_teacher_first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_teacher_last_name">Last Name</label>
+                                <input type="text" class="form-control" name="last_name" id="edit_teacher_last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_teacher_email">Email</label>
+                                <input type="email" class="form-control" name="email" id="edit_teacher_email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_teacher_phone">Phone</label>
+                                <input type="text" class="form-control" name="phone" id="edit_teacher_phone">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tuition Modal -->
+        <div class="modal fade" id="tuitionModal" tabindex="-1" role="dialog" aria-labelledby="tuitionModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tuitionModalLabel">Edit Tuition</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        {% if tuition_edit and tuition_edit.tuition_id %}
+                        <form action="{{ url_for('update_tuition') }}" method="POST">
+                            <input type="hidden" name="tuition_id" value="{{ tuition_edit.tuition_id | default('') }}">
+                            <p><strong>Student:</strong> {{ tuition_edit.student_name | default('Unknown Student') }}</p>
+                            <div class="form-group">
+                                <label for="grade">Grade</label>
+                                <select class="form-control" name="grade" id="grade">
+                                    <option value="K" {% if tuition_edit.grade == 'K' %}selected{% endif %}>K</option>
+                                    <option value="1" {% if tuition_edit.grade == '1' %}selected{% endif %}>1</option>
+                                    <option value="2" {% if tuition_edit.grade == '2' %}selected{% endif %}>2</option>
+                                    <option value="3" {% if tuition_edit.grade == '3' %}selected{% endif %}>3</option>
+                                    <option value="4" {% if tuition_edit.grade == '4' %}selected{% endif %}>4</option>
+                                    <option value="5" {% if tuition_edit.grade == '5' %}selected{% endif %}>5</option>
+                                    <option value="6" {% if tuition_edit.grade == '6' %}selected{% endif %}>6</option>
+                                    <option value="7" {% if tuition_edit.grade == '7' %}selected{% endif %}>7</option>
+                                    <option value="8" {% if tuition_edit.grade == '8' %}selected{% endif %}>8</option>
+                                    <option value="9" {% if tuition_edit.grade == '9' %}selected{% endif %}>9</option>
+                                    <option value="10" {% if tuition_edit.grade == '10' %}selected{% endif %}>10</option>
+                                    <option value="11" {% if tuition_edit.grade == '11' %}selected{% endif %}>11</option>
+                                    <option value="12" {% if tuition_edit.grade == '12' %}selected{% endif %}>12</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Days (select type for each day)</label>
+                                {% set days = tuition_edit.days | default({}) %}
+                                <div class="form-check">
+                                    <label>Monday</label>
+                                    <select class="form-control" name="mon">
+                                        <option value="" {% if not days.get('Mon') %}selected{% endif %}>None</option>
+                                        {% if tuition_edit.grade == 'K' %}
+                                        <option value="morning" {% if days.get('Mon') == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if days.get('Mon') == 'afternoon' %}selected{% endif %}>Morning+Afternoon</option>
+                                        {% else %}
+                                        <option value="full" {% if days.get('Mon') == 'full' %}selected{% endif %}>Full</option>
+                                        <option value="enrichment" {% if days.get('Mon') == 'enrichment' %}selected{% endif %}>Enrichment</option>
+                                        <option value="academic" {% if days.get('Mon') == 'academic' %}selected{% endif %}>Academic</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="form-check">
+                                    <label>Tuesday</label>
+                                    <select class="form-control" name="tue">
+                                        <option value="" {% if not days.get('Tue') %}selected{% endif %}>None</option>
+                                        {% if tuition_edit.grade == 'K' %}
+                                        <option value="morning" {% if days.get('Tue') == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if days.get('Tue') == 'afternoon' %}selected{% endif %}>Morning+Afternoon</option>
+                                        {% else %}
+                                        <option value="full" {% if days.get('Tue') == 'full' %}selected{% endif %}>Full</option>
+                                        <option value="enrichment" {% if days.get('Tue') == 'enrichment' %}selected{% endif %}>Enrichment</option>
+                                        <option value="academic" {% if days.get('Tue') == 'academic' %}selected{% endif %}>Academic</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="form-check">
+                                    <label>Wednesday</label>
+                                    <select class="form-control" name="wed">
+                                        <option value="" {% if not days.get('Wed') %}selected{% endif %}>None</option>
+                                        {% if tuition_edit.grade == 'K' %}
+                                        <option value="morning" {% if days.get('Wed') == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if days.get('Wed') == 'afternoon' %}selected{% endif %}>Morning+Afternoon</option>
+                                        {% else %}
+                                        <option value="full" {% if days.get('Wed') == 'full' %}selected{% endif %}>Full</option>
+                                        <option value="enrichment" {% if days.get('Wed') == 'enrichment' %}selected{% endif %}>Enrichment</option>
+                                        <option value="academic" {% if days.get('Wed') == 'academic' %}selected{% endif %}>Academic</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="form-check">
+                                    <label>Thursday</label>
+                                    <select class="form-control" name="thu">
+                                        <option value="" {% if not days.get('Thu') %}selected{% endif %}>None</option>
+                                        {% if tuition_edit.grade == 'K' %}
+                                        <option value="morning" {% if days.get('Thu') == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if days.get('Thu') == 'afternoon' %}selected{% endif %}>Morning+Afternoon</option>
+                                        {% else %}
+                                        <option value="full" {% if days.get('Thu') == 'full' %}selected{% endif %}>Full</option>
+                                        <option value="enrichment" {% if days.get('Thu') == 'enrichment' %}selected{% endif %}>Enrichment</option>
+                                        <option value="academic" {% if days.get('Thu') == 'academic' %}selected{% endif %}>Academic</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="form-check">
+                                    <label>Friday</label>
+                                    <select class="form-control" name="fri">
+                                        <option value="" {% if not days.get('Fri') %}selected{% endif %}>None</option>
+                                        {% if tuition_edit.grade == 'K' %}
+                                        <option value="morning" {% if days.get('Fri') == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if days.get('Fri') == 'afternoon' %}selected{% endif %}>Morning+Afternoon</option>
+                                        {% else %}
+                                        <option value="full" {% if days.get('Fri') == 'full' %}selected{% endif %}>Full</option>
+                                        <option value="enrichment" {% if days.get('Fri') == 'enrichment' %}selected{% endif %}>Enrichment</option>
+                                        <option value="academic" {% if days.get('Fri') == 'academic' %}selected{% endif %}>Academic</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="paid_in_full" id="paid_in_full" {% if tuition_edit.paid_in_full %}checked{% endif %}>
+                                <label class="form-check-label" for="paid_in_full">Paid in Full (5% discount)</label>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <p>No tuition data available for editing.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                console.log('Document ready, checking tuition_edit');
+                {% if tuition_edit and tuition_edit.tuition_id %}
+                console.log('Opening modal with tuition_edit:', {{ tuition_edit | tojson | safe }});
+                $('#tuitionModal').modal('show');
+                {% else %}
+                console.log('No tuition_edit data for modal');
+                {% endif %}
+                // Ensure modal redirects to tuition tab on close
+                $('#tuitionModal').on('hidden.bs.modal', function () {
+                    window.location.href = "{{ url_for('tuition') }}";
+                });
+
+                // Populate Edit Student Modal
+                $('#editStudentModal').on('show.bs.modal', function (event) {
+                    var button = $(event.relatedTarget);
+                    var student = button.data('student');
+                    var modal = $(this);
+                    modal.find('#edit_student_id').val(student.student_id);
+                    modal.find('#edit_first_name').val(student.first_name);
+                    modal.find('#edit_last_name').val(student.last_name);
+                    modal.find('#edit_grade_level').val(student.grade_level);
+                    modal.find('#edit_parent_id').val(student.parent_id || '');
+                    modal.find('#edit_medicines').val(student.medicines || '');
+                    modal.find('#edit_allergies').val(student.allergies || '');
+                    modal.find('#edit_medical_conditions').val(student.medical_conditions || '');
+                    modal.find('#edit_comments').val(student.comments || '');
+                });
+
+                // Populate Edit Parent Modal
+                $('#editParentModal').on('show.bs.modal', function (event) {
+                    var button = $(event.relatedTarget);
+                    var parent = button.data('parent');
+                    var modal = $(this);
+                    modal.find('#edit_parent_id').val(parent.parent_id);
+                    modal.find('#edit_parent_first_name').val(parent.first_name);
+                    modal.find('#edit_parent_last_name').val(parent.last_name);
+                    modal.find('#edit_parent_email').val(parent.email || '');
+                    modal.find('#edit_parent_phone').val(parent.phone || '');
+                    modal.find('#edit_parent_is_staff').prop('checked', parent.is_staff || false);
+                });
+
+                // Populate Edit Teacher Modal
+                $('#editTeacherModal').on('show.bs.modal', function (event) {
+                    var button = $(event.relatedTarget);
+                    var teacher = button.data('teacher');
+                    var modal = $(this);
+                    modal.find('#edit_teacher_id').val(teacher.teacher_id);
+                    modal.find('#edit_teacher_first_name').val(teacher.first_name);
+                    modal.find('#edit_teacher_last_name').val(teacher.last_name);
+                    modal.find('#edit_teacher_email').val(teacher.email || '');
+                    modal.find('#edit_teacher_phone').val(teacher.phone || '');
+                });
+            });
+        </script>
+    </body>
+</html>

@@ -95,7 +95,12 @@
                         {% endfor %}
                     </tbody>
                 </table>
-
+                <div class="mt-3">
+                    <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
+                        <button type="submit" class="btn btn-primary">Import from CSV</button>
+                    </form>
+                </div>
                 <!-- Add Student Modal -->
                 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -260,7 +265,12 @@
                         {% endfor %}
                     </tbody>
                 </table>
-
+                <div class="mt-3">
+                    <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
+                        <button type="submit" class="btn btn-primary">Import from CSV</button>
+                    </form>
+                </div>
                 <!-- Add Parent Modal -->
                 <div class="modal fade" id="addParentModal" tabindex="-1" aria-labelledby="addParentModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -300,7 +310,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Edit Parent Modal -->
                 <div class="modal fade" id="editParentModal" tabindex="-1" aria-labelledby="editParentModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -341,7 +350,6 @@
                         </div>
                     </div>
                 </div>
-
             {% elif active_tab == 'teachers' %}
                 <!-- Teachers Tab -->
                 <h2>Teachers</h2>
@@ -378,7 +386,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-
                 <!-- Add Teacher Modal -->
                 <div class="modal fade" id="addTeacherModal" tabindex="-1" aria-labelledby="addTeacherModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -414,7 +421,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Edit Teacher Modal -->
                 <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -451,7 +457,6 @@
                         </div>
                     </div>
                 </div>
-
             {% elif active_tab == 'tuition' %}
                 <!-- Tuition Tab -->
                 <h2>Tuition</h2>
@@ -487,7 +492,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-
                 <!-- Edit Tuition Modal -->
                 {% if tuition_edit %}
                     <div class="modal fade" id="editTuitionModal" tabindex="-1" aria-labelledby="editTuitionModalLabel" aria-hidden="true">

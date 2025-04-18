@@ -2,9 +2,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-import pandas as pd
-import io
-import uuid
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default-secret-key')
@@ -23,7 +20,6 @@ except Exception as e:
     print(f"Error initializing Supabase client: {str(e)}")
     raise
 
-# Existing functions (unchanged)
 def format_phone(phone):
     if not phone:
         return ""
@@ -101,17 +97,13 @@ def add_student():
             'medical_conditions': medical_conditions,
             'comments': comments
         }
-        print(f"Adding student: {data}")
         response = supabase.table('students').insert(data).execute()
-        if response.data:
-            print(f"Student added: {response.data}")
-            flash('Student added successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Error adding student: {response.error}")
+            flash(f"Error adding student: {response.error}")
             return redirect(url_for('students'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error adding student: {error}")
-            flash(f"Error adding student: {error}")
-            return redirect(url_for('students'))
+        flash('Student added successfully!')
+        return redirect(url_for('students'))
     except Exception as e:
         print(f"Exception adding student: {str(e)}")
         flash(f"Error adding student: {str(e)}")
@@ -139,17 +131,13 @@ def edit_student():
             'medical_conditions': medical_conditions,
             'comments': comments
         }
-        print(f"Updating student {student_id}: {data}")
         response = supabase.table('students').update(data).eq('student_id', student_id).execute()
-        if response.data:
-            print(f"Student updated: {response.data}")
-            flash('Student updated successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Error updating student: {response.error}")
+            flash(f"Error updating student: {response.error}")
             return redirect(url_for('students'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error updating student: {error}")
-            flash(f"Error updating student: {error}")
-            return redirect(url_for('students'))
+        flash('Student updated successfully!')
+        return redirect(url_for('students'))
     except Exception as e:
         print(f"Exception updating student: {str(e)}")
         flash(f"Error updating student: {str(e)}")
@@ -158,27 +146,16 @@ def edit_student():
 @app.route('/delete_student/<student_id>', methods=['POST'])
 def delete_student(student_id):
     try:
-        print(f"Deleting student {student_id}")
-        # Delete related tuition records
-        tuition_response = supabase.table('tuition').delete().eq('student_id', student_id).execute()
-        print(f"Deleted tuition records for student {student_id}: {tuition_response.data}")
-        # Delete student
         response = supabase.table('students').delete().eq('student_id', student_id).execute()
-        if response.data or not response.error:
-            print(f"Student deleted: {response.data}")
-            flash('Student deleted successfully!')
-            print(f"Flashed: Student deleted successfully! for student {student_id}")
+        if hasattr(response, 'error') and response.error:
+            print(f"Error deleting student: {response.error}")
+            flash(f"Error deleting student: {response.error}")
             return redirect(url_for('students'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error deleting student: {error}")
-            flash(f"Error deleting student: {error}")
-            print(f"Flashed: Error deleting student: {error}")
-            return redirect(url_for('students'))
+        flash('Student deleted successfully!')
+        return redirect(url_for('students'))
     except Exception as e:
         print(f"Exception deleting student: {str(e)}")
         flash(f"Error deleting student: {str(e)}")
-        print(f"Flashed: Error deleting student: {str(e)}")
         return redirect(url_for('students'))
 
 @app.route('/parents')
@@ -210,17 +187,13 @@ def add_parent():
             'phone': phone,
             'is_staff': is_staff
         }
-        print(f"Adding parent: {data}")
         response = supabase.table('parents').insert(data).execute()
-        if response.data:
-            print(f"Parent added: {response.data}")
-            flash('Parent added successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Error adding parent: {response.error}")
+            flash(f"Error adding parent: {response.error}")
             return redirect(url_for('parents'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error adding parent: {error}")
-            flash(f"Error adding parent: {error}")
-            return redirect(url_for('parents'))
+        flash('Parent added successfully!')
+        return redirect(url_for('parents'))
     except Exception as e:
         print(f"Exception adding parent: {str(e)}")
         flash(f"Error adding parent: {str(e)}")
@@ -229,11 +202,11 @@ def add_parent():
 @app.route('/edit_parent', methods=['POST'])
 def edit_parent():
     try:
-        parent_id = request.form.get('parent_id')
-        print(f"Received form data: {dict(request.form)}")
-        if not parent_id:
-            print("Error: No parent_id provided")
+        parent_id = request.form.get('parent_id') or request.form.get('parent_id_fallback')
+        print('Received form data:', dict(request.form))
+        if not parent_id or parent_id.strip() == '':
             flash('Error: No parent ID provided.')
+            print('Edit parent failed: Invalid parent_id', parent_id, dict(request.form))
             return redirect(url_for('parents'))
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -247,17 +220,14 @@ def edit_parent():
             'phone': phone,
             'is_staff': is_staff
         }
-        print(f"Updating parent {parent_id}: {data}")
         response = supabase.table('parents').update(data).eq('parent_id', parent_id).execute()
-        if response.data:
-            print(f"Parent updated: {response.data}")
-            flash('Parent updated successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Supabase error updating parent: {response.error}")
+            flash(f"Error updating parent: {response.error}")
             return redirect(url_for('parents'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error updating parent: {error}")
-            flash(f"Error updating parent: {error}")
-            return redirect(url_for('parents'))
+        print(f"Parent updated successfully: {parent_id}", data)
+        flash('Parent updated successfully!')
+        return redirect(url_for('parents'))
     except Exception as e:
         print(f"Exception updating parent: {str(e)}")
         flash(f"Error updating parent: {str(e)}")
@@ -266,30 +236,17 @@ def edit_parent():
 @app.route('/delete_parent/<parent_id>', methods=['POST'])
 def delete_parent(parent_id):
     try:
-        print(f"Deleting parent {parent_id}")
-        # Nullify student parent_id references
-        students_response = supabase.table('students').update({'parent_id': None}).eq('parent_id', parent_id).execute()
-        print(f"Nullified student parent_id for parent {parent_id}: {students_response.data}")
-        # Delete related tuition records
-        tuition_response = supabase.table('tuition').delete().eq('parent_id', parent_id).execute()
-        print(f"Deleted tuition records for parent {parent_id}: {tuition_response.data}")
-        # Delete parent
+        supabase.table('students').update({'parent_id': None}).eq('parent_id', parent_id).execute()
         response = supabase.table('parents').delete().eq('parent_id', parent_id).execute()
-        if response.data or not response.error:
-            print(f"Parent deleted: {response.data}")
-            flash('Parent deleted successfully!')
-            print(f"Flashed: Parent deleted successfully! for parent {parent_id}")
+        if hasattr(response, 'error') and response.error:
+            print(f"Error deleting parent: {response.error}")
+            flash(f"Error deleting parent: {response.error}")
             return redirect(url_for('parents'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error deleting parent: {error}")
-            flash(f"Error deleting parent: {error}")
-            print(f"Flashed: Error deleting parent: {error}")
-            return redirect(url_for('parents'))
+        flash('Parent deleted successfully!')
+        return redirect(url_for('parents'))
     except Exception as e:
         print(f"Exception deleting parent: {str(e)}")
         flash(f"Error deleting parent: {str(e)}")
-        print(f"Flashed: Error deleting parent: {str(e)}")
         return redirect(url_for('parents'))
 
 @app.route('/teachers')
@@ -315,17 +272,13 @@ def add_teacher():
             'email': email,
             'phone': phone
         }
-        print(f"Adding teacher: {data}")
         response = supabase.table('teachers').insert(data).execute()
-        if response.data:
-            print(f"Teacher added: {response.data}")
-            flash('Teacher added successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Error adding teacher: {response.error}")
+            flash(f"Error adding teacher: {response.error}")
             return redirect(url_for('teachers'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error adding teacher: {error}")
-            flash(f"Error adding teacher: {error}")
-            return redirect(url_for('teachers'))
+        flash('Teacher added successfully!')
+        return redirect(url_for('teachers'))
     except Exception as e:
         print(f"Exception adding teacher: {str(e)}")
         flash(f"Error adding teacher: {str(e)}")
@@ -334,11 +287,11 @@ def add_teacher():
 @app.route('/edit_teacher', methods=['POST'])
 def edit_teacher():
     try:
-        teacher_id = request.form.get('teacher_id')
-        print(f"Received form data: {dict(request.form)}")
-        if not teacher_id:
-            print("Error: No teacher_id provided")
+        teacher_id = request.form.get('teacher_id') or request.form.get('teacher_id_fallback')
+        print('Received form data:', dict(request.form))
+        if not teacher_id or teacher_id.strip() == '':
             flash('Error: No teacher ID provided.')
+            print('Edit teacher failed: Invalid teacher_id', teacher_id, dict(request.form))
             return redirect(url_for('teachers'))
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -350,17 +303,14 @@ def edit_teacher():
             'email': email,
             'phone': phone
         }
-        print(f"Updating teacher {teacher_id}: {data}")
         response = supabase.table('teachers').update(data).eq('teacher_id', teacher_id).execute()
-        if response.data:
-            print(f"Teacher updated: {response.data}")
-            flash('Teacher updated successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Supabase error updating teacher: {response.error}")
+            flash(f"Error updating teacher: {response.error}")
             return redirect(url_for('teachers'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error updating teacher: {error}")
-            flash(f"Error updating teacher: {error}")
-            return redirect(url_for('teachers'))
+        print(f"Teacher updated successfully: {teacher_id}", data)
+        flash('Teacher updated successfully!')
+        return redirect(url_for('teachers'))
     except Exception as e:
         print(f"Exception updating teacher: {str(e)}")
         flash(f"Error updating teacher: {str(e)}")
@@ -369,17 +319,13 @@ def edit_teacher():
 @app.route('/delete_teacher/<teacher_id>', methods=['POST'])
 def delete_teacher(teacher_id):
     try:
-        print(f"Deleting teacher {teacher_id}")
         response = supabase.table('teachers').delete().eq('teacher_id', teacher_id).execute()
-        if response.data or not response.error:
-            print(f"Teacher deleted: {response.data}")
-            flash('Teacher deleted successfully!')
+        if hasattr(response, 'error') and response.error:
+            print(f"Error deleting teacher: {response.error}")
+            flash(f"Error deleting teacher: {response.error}")
             return redirect(url_for('teachers'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error deleting teacher: {error}")
-            flash(f"Error deleting teacher: {error}")
-            return redirect(url_for('teachers'))
+        flash('Teacher deleted successfully!')
+        return redirect(url_for('teachers'))
     except Exception as e:
         print(f"Exception deleting teacher: {str(e)}")
         flash(f"Error deleting teacher: {str(e)}")
@@ -476,7 +422,7 @@ def update_tuition():
             for day, type in days.items():
                 if type not in valid_types:
                     print(f"Invalid day type for K: {type}")
-                    flash(f"Invalid day type '{type}' for Kindergarten. Use 'Morning' or 'Afternoon'.")
+                    flash(f"Invalid day type '{type}' for Kindergarten. Use 'Morning' or 'Morning+Afternoon'.")
                     return redirect(url_for('tuition'))
 
         # Calculate base tuition
@@ -516,128 +462,13 @@ def update_tuition():
         print(f"Updating Supabase with: {update_data}")
         response = supabase.table('tuition').update(update_data).eq('tuition_id', tuition_id).execute()
         print(f"Supabase update response: {response.data}")
-        if response.data:
-            print(f"Tuition updated: {response.data}")
-            flash("Tuition updated successfully.")
-            return redirect(url_for('tuition'))
-        else:
-            error = getattr(response, 'error', 'Unknown error')
-            print(f"Error updating tuition: {error}")
-            flash(f"Error updating tuition: {error}")
-            return redirect(url_for('tuition'))
+
+        flash("Tuition updated successfully.")
+        return redirect(url_for('tuition'))
     except Exception as e:
-        print(f"Exception updating tuition: {str(e)}")
+        print(f"Error updating tuition: {str(e)}")
         flash(f"Error updating tuition: {str(e)}")
         return redirect(url_for('tuition'))
-    
-@app.route('/import_from_csv', methods=['POST'])
-def import_from_csv():
-    try:
-        print("Starting CSV import")
-        if 'file' not in request.files:
-            flash('No file uploaded')
-            print("Error: No file uploaded")
-            return redirect(request.referrer or url_for('students'))
-        file = request.files['file']
-        if not file.filename.endswith('.csv'):
-            flash('Please upload a CSV file')
-            print("Error: File is not a CSV")
-            return redirect(request.referrer or url_for('students'))
-
-        # Debug file content
-        file_content = file.read()
-        print(f"File size: {len(file_content)} bytes")
-        if len(file_content) == 0:
-            flash('Uploaded file is empty')
-            print("Error: Uploaded file is empty")
-            return redirect(request.referrer or url_for('students'))
-
-        df = pd.read_csv(io.BytesIO(file_content))
-        print(f"CSV headers: {list(df.columns)}")
-        print(f"CSV rows: {len(df)}")
-
-        # Column mappings
-        student_mappings = {
-            'student_id': ['Student ID', 'ID', 'StudentID'],
-            'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
-            'last_name': ['Last Name', 'LastName', 'Surname'],
-            'grade_level': ['Grade Level', 'Grade', 'Year'],
-            'parent_id': ['Parent ID', 'ParentID'],
-            'medicines': ['Medicines', 'Medication'],
-            'allergies': ['Allergies', 'Allergy'],
-            'medical_conditions': ['Medical Conditions', 'Medical', 'Conditions'],
-            'comments': ['Comments', 'Notes']
-        }
-        parent_mappings = {
-            'parent_id': ['Parent ID', 'ID', 'ParentID'],
-            'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
-            'last_name': ['Last Name', 'LastName', 'Surname'],
-            'email': ['Email', 'E-mail'],
-            'phone': ['Phone', 'Phone Number', 'Contact'],
-            'is_staff': ['Is Staff', 'Staff', 'Employee']
-        }
-
-        # Detect table
-        table = None
-        mappings = None
-        # Check for parent-specific headers first
-        parent_headers = ['email', 'phone', 'is_staff']
-        if any(any(h.lower() in [m.lower() for m in parent_mappings[field]] for h in df.columns) for field in parent_headers):
-            table = 'parents'
-            mappings = parent_mappings
-        elif any(any(h.lower() == m.lower() for m in student_mappings['first_name']) for h in df.columns):
-            table = 'students'
-            mappings = student_mappings
-        else:
-            flash('Invalid CSV: No recognizable First Name column')
-            print("Error: No recognizable First Name column")
-            return redirect(request.referrer or url_for('students'))
-
-        # Map columns
-        column_map = {}
-        for supabase_field, possible_headers in mappings.items():
-            for header in possible_headers:
-                if header in df.columns or header.lower() in [c.lower() for c in df.columns]:
-                    column_map[supabase_field] = next(c for c in df.columns if c.lower() == header.lower())
-                    break
-
-        # Validate required fields
-        required = ['first_name', 'last_name'] if table == 'parents' else ['first_name', 'last_name', 'grade_level']
-        if not all(f in column_map for f in required):
-            flash(f'Missing required columns: {", ".join(r for r in required if r not in column_map)}')
-            print(f"Error: Missing required columns: {', '.join(r for r in required if r not in column_map)}")
-            return redirect(request.referrer or url_for('students'))
-
-        # Import data
-        for _, row in df.iterrows():
-            data = {}
-            for supabase_field, csv_column in column_map.items():
-                value = row[csv_column] if csv_column in row and pd.notna(row[csv_column]) else None
-                if supabase_field == 'is_staff':
-                    data[supabase_field] = value.lower() in ['yes', 'true', '1'] if value else False
-                elif supabase_field == 'grade_level':
-                    data[supabase_field] = str(value).lower() if value else None
-                elif supabase_field == 'phone':
-                    data[supabase_field] = format_phone(str(value)) if value else None
-                else:
-                    data[supabase_field] = value
-
-            # Generate IDs if missing
-            if 'student_id' not in column_map and table == 'students':
-                data['student_id'] = str(uuid.uuid4())
-            if 'parent_id' not in column_map and table == 'parents':
-                data['parent_id'] = str(uuid.uuid4())
-
-            print(f"Inserting {table} record: {data}")
-            supabase.table(table).insert(data).execute()
-
-        flash(f"Successfully imported {len(df)} records into {table}")
-        print(f"Flashed: Successfully imported {len(df)} records into {table}")
-        return redirect(request.referrer or url_for('students'))
-    except Exception as e:
-        flash(f"Error importing CSV: {str(e)}")
-        print(f"Error importing CSV: {str(e)}")
-        return redirect(request.referrer or url_for('students'))
 
 if __name__ == '__main__':
     app.run(debug=True)
