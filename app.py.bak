@@ -77,6 +77,7 @@ def students():
         return render_template('index.html', active_tab='students', students=[], parents=[])
 
 @app.route('/add_student', methods=['POST'])
+@login_required
 def add_student():
     try:
         first_name = request.form['first_name']
@@ -110,6 +111,7 @@ def add_student():
         return redirect(url_for('students'))
 
 @app.route('/edit_student', methods=['POST'])
+@login_required
 def edit_student():
     try:
         student_id = request.form['student_id']
@@ -144,6 +146,7 @@ def edit_student():
         return redirect(url_for('students'))
 
 @app.route('/delete_student/<student_id>', methods=['POST'])
+@login_required
 def delete_student(student_id):
     try:
         response = supabase.table('students').delete().eq('student_id', student_id).execute()
@@ -173,6 +176,7 @@ def parents():
         return render_template('index.html', active_tab='parents', parents=[])
 
 @app.route('/add_parent', methods=['POST'])
+@login_required
 def add_parent():
     try:
         first_name = request.form['first_name']
@@ -200,6 +204,7 @@ def add_parent():
         return redirect(url_for('parents'))
 
 @app.route('/edit_parent', methods=['POST'])
+@login_required
 def edit_parent():
     try:
         parent_id = request.form.get('parent_id') or request.form.get('parent_id_fallback')
@@ -234,6 +239,7 @@ def edit_parent():
         return redirect(url_for('parents'))
 
 @app.route('/delete_parent/<parent_id>', methods=['POST'])
+@login_required
 def delete_parent(parent_id):
     try:
         supabase.table('students').update({'parent_id': None}).eq('parent_id', parent_id).execute()
@@ -260,6 +266,7 @@ def teachers():
         return render_template('index.html', active_tab='teachers', teachers=[])
 
 @app.route('/add_teacher', methods=['POST'])
+@login_required
 def add_teacher():
     try:
         first_name = request.form['first_name']
@@ -285,6 +292,7 @@ def add_teacher():
         return redirect(url_for('teachers'))
 
 @app.route('/edit_teacher', methods=['POST'])
+@login_required
 def edit_teacher():
     try:
         teacher_id = request.form.get('teacher_id') or request.form.get('teacher_id_fallback')
@@ -317,6 +325,7 @@ def edit_teacher():
         return redirect(url_for('teachers'))
 
 @app.route('/delete_teacher/<teacher_id>', methods=['POST'])
+@login_required
 def delete_teacher(teacher_id):
     try:
         response = supabase.table('teachers').delete().eq('teacher_id', teacher_id).execute()

@@ -15,6 +15,14 @@
 </head>
 <body>
     <div class="container">
+        <!-- User Info and Logout -->
+        {% if current_user.is_authenticated %}
+            <div class="d-flex justify-content-between mb-3">
+                <span>Welcome, {{ current_user.email }} ({{ current_user.role | capitalize }})</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Logout</a>
+            </div>
+        {% endif %}
+
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -34,12 +42,14 @@
             <li class="nav-item">
                 <a class="nav-link {{ 'active' if active_tab == 'students' else '' }}" href="{{ url_for('students') }}">Students</a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {{ 'active' if active_tab == 'parents' else '' }}" href="{{ url_for('parents') }}">Parents</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ 'active' if active_tab == 'teachers' else '' }}" href="{{ url_for('teachers') }}">Teachers</a>
-            </li>
+            {% if user_role != 'parent' %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_tab == 'parents' else '' }}" href="{{ url_for('parents') }}">Parents</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_tab == 'teachers' else '' }}" href="{{ url_for('teachers') }}">Teachers</a>
+                </li>
+            {% endif %}
             <li class="nav-item">
                 <a class="nav-link {{ 'active' if active_tab == 'tuition' else '' }}" href="{{ url_for('tuition') }}">Tuition</a>
             </li>
@@ -50,7 +60,9 @@
             {% if active_tab == 'students' %}
                 <!-- Students Tab -->
                 <h2>Students</h2>
-                <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
+                {% if user_role in ['admin', 'teacher'] %}
+                    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
+                {% endif %}
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -77,159 +89,169 @@
                                 <td>{{ student.medical_conditions or 'N/A' }}</td>
                                 <td>{{ student.comments or 'N/A' }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning edit-student" data-bs-toggle="modal" data-bs-target="#editStudentModal"
-                                            data-student-id="{{ student.student_id }}"
-                                            data-first-name="{{ student.first_name }}"
-                                            data-last-name="{{ student.last_name }}"
-                                            data-grade-level="{{ student.grade_level }}"
-                                            data-parent-id="{{ student.parent_id }}"
-                                            data-medicines="{{ student.medicines }}"
-                                            data-allergies="{{ student.allergies }}"
-                                            data-medical-conditions="{{ student.medical_conditions }}"
-                                            data-comments="{{ student.comments }}">Edit</button>
-                                    <form action="{{ url_for('delete_student', student_id=student.student_id) }}" method="POST" style="display:inline;">
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this student?')">Delete</button>
-                                    </form>
+                                    {% if user_role in ['admin', 'teacher'] %}
+                                        <button class="btn btn-sm btn-warning edit-student" data-bs-toggle="modal" data-bs-target="#editStudentModal"
+                                                data-student-id="{{ student.student_id }}"
+                                                data-first-name="{{ student.first_name }}"
+                                                data-last-name="{{ student.last_name }}"
+                                                data-grade-level="{{ student.grade_level }}"
+                                                data-parent-id="{{ student.parent_id }}"
+                                                data-medicines="{{ student.medicines }}"
+                                                data-allergies="{{ student.allergies }}"
+                                                data-medical-conditions="{{ student.medical_conditions }}"
+                                                data-comments="{{ student.comments }}">Edit</button>
+                                    {% endif %}
+                                    {% if user_role == 'admin' %}
+                                        <form action="{{ url_for('delete_student', student_id=student.student_id) }}" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this student?')">Delete</button>
+                                        </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                <div class="mt-3">
-                    <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
-                        <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
-                        <button type="submit" class="btn btn-primary">Import from CSV</button>
-                    </form>
-                </div>
+                {% if user_role == 'admin' %}
+                    <div class="mt-3">
+                        <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
+                            <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
+                            <button type="submit" class="btn btn-primary">Import from CSV</button>
+                        </form>
+                    </div>
+                {% endif %}
                 <!-- Add Student Modal -->
-                <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="addStudentModalLabel">Add Student</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                {% if user_role in ['admin', 'teacher'] %}
+                    <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="addStudentModalLabel">Add Student</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('add_student') }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                            <label for="first_name">First Name</label>
+                                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="grade_level">Grade Level</label>
+                                            <select class="form-control" id="grade_level" name="grade_level" required>
+                                                <option value="k">K</option>
+                                                {% for i in range(1, 13) %}
+                                                    <option value="{{ i }}">{{ i }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="parent_id">Parent</label>
+                                            <select class="form-control" id="parent_id" name="parent_id">
+                                                <option value="">None</option>
+                                                {% for parent in parents %}
+                                                    <option value="{{ parent.parent_id }}">{{ parent.first_name }} {{ parent.last_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="medicines">Medicines</label>
+                                            <input type="text" class="form-control" id="medicines" name="medicines">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="allergies">Allergies</label>
+                                            <input type="text" class="form-control" id="allergies" name="allergies">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="medical_conditions">Medical Conditions</label>
+                                            <input type="text" class="form-control" id="medical_conditions" name="medical_conditions">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="comments">Comments</label>
+                                            <textarea class="form-control" id="comments" name="comments"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Add Student</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('add_student') }}" method="POST">
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label for="first_name">First Name</label>
-                                        <input type="text" class="form-control" id="first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="grade_level">Grade Level</label>
-                                        <select class="form-control" id="grade_level" name="grade_level" required>
-                                            <option value="k">K</option>
-                                            {% for i in range(1, 13) %}
-                                                <option value="{{ i }}">{{ i }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="parent_id">Parent</label>
-                                        <select class="form-control" id="parent_id" name="parent_id">
-                                            <option value="">None</option>
-                                            {% for parent in parents %}
-                                                <option value="{{ parent.parent_id }}">{{ parent.first_name }} {{ parent.last_name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="medicines">Medicines</label>
-                                        <input type="text" class="form-control" id="medicines" name="medicines">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="allergies">Allergies</label>
-                                        <input type="text" class="form-control" id="allergies" name="allergies">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="medical_conditions">Medical Conditions</label>
-                                        <input type="text" class="form-control" id="medical_conditions" name="medical_conditions">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="comments">Comments</label>
-                                        <textarea class="form-control" id="comments" name="comments"></textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Add Student</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
 
-                <!-- Edit Student Modal -->
-                <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <!-- Edit Student Modal -->
+                    <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('edit_student') }}" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" id="edit_student_id" name="student_id">
+                                        <div class="form-group">
+                                            <label for="edit_first_name">First Name</label>
+                                            <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_grade_level">Grade Level</label>
+                                            <select class="form-control" id="edit_grade_level" name="grade_level" required>
+                                                <option value="k">K</option>
+                                                {% for i in range(1, 13) %}
+                                                    <option value="{{ i }}">{{ i }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_parent_id">Parent</label>
+                                            <select class="form-control" id="edit_parent_id" name="parent_id">
+                                                <option value="">None</option>
+                                                {% for parent in parents %}
+                                                    <option value="{{ parent.parent_id }}">{{ parent.first_name }} {{ parent.last_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_medicines">Medicines</label>
+                                            <input type="text" class="form-control" id="edit_medicines" name="medicines">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_allergies">Allergies</label>
+                                            <input type="text" class="form-control" id="edit_allergies" name="allergies">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_medical_conditions">Medical Conditions</label>
+                                            <input type="text" class="form-control" id="edit_medical_conditions" name="medical_conditions">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_comments">Comments</label>
+                                            <textarea class="form-control" id="edit_comments" name="comments"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('edit_student') }}" method="POST">
-                                <div class="modal-body">
-                                    <input type="hidden" id="edit_student_id" name="student_id">
-                                    <div class="form-group">
-                                        <label for="edit_first_name">First Name</label>
-                                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_grade_level">Grade Level</label>
-                                        <select class="form-control" id="edit_grade_level" name="grade_level" required>
-                                            <option value="k">K</option>
-                                            {% for i in range(1, 13) %}
-                                                <option value="{{ i }}">{{ i }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_parent_id">Parent</label>
-                                        <select class="form-control" id="edit_parent_id" name="parent_id">
-                                            <option value="">None</option>
-                                            {% for parent in parents %}
-                                                <option value="{{ parent.parent_id }}">{{ parent.first_name }} {{ parent.last_name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_medicines">Medicines</label>
-                                        <input type="text" class="form-control" id="edit_medicines" name="medicines">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_allergies">Allergies</label>
-                                        <input type="text" class="form-control" id="edit_allergies" name="allergies">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_medical_conditions">Medical Conditions</label>
-                                        <input type="text" class="form-control" id="edit_medical_conditions" name="medical_conditions">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_comments">Comments</label>
-                                        <textarea class="form-control" id="edit_comments" name="comments"></textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
+                {% endif %}
 
-            {% elif active_tab == 'parents' %}
+            {% elif active_tab == 'parents' and user_role != 'parent' %}
                 <!-- Parents Tab -->
                 <h2>Parents</h2>
-                <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addParentModal">Add Parent</button>
+                {% if user_role == 'admin' %}
+                    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addParentModal">Add Parent</button>
+                {% endif %}
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -250,110 +272,118 @@
                                 <td>{{ parent.phone | format_phone or 'N/A' }}</td>
                                 <td>{{ 'Yes' if parent.is_staff else 'No' }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning edit-parent" data-bs-toggle="modal" data-bs-target="#editParentModal"
-                                            data-parent-id="{{ parent.parent_id }}"
-                                            data-first-name="{{ parent.first_name }}"
-                                            data-last-name="{{ parent.last_name }}"
-                                            data-email="{{ parent.email }}"
-                                            data-phone="{{ parent.phone }}"
-                                            data-is-staff="{{ 'true' if parent.is_staff else 'false' }}">Edit</button>
-                                    <form action="{{ url_for('delete_parent', parent_id=parent.parent_id) }}" method="POST" style="display:inline;">
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this parent?')">Delete</button>
-                                    </form>
+                                    {% if user_role == 'admin' %}
+                                        <button class="btn btn-sm btn-warning edit-parent" data-bs-toggle="modal" data-bs-target="#editParentModal"
+                                                data-parent-id="{{ parent.parent_id }}"
+                                                data-first-name="{{ parent.first_name }}"
+                                                data-last-name="{{ parent.last_name }}"
+                                                data-email="{{ parent.email }}"
+                                                data-phone="{{ parent.phone }}"
+                                                data-is-staff="{{ 'true' if parent.is_staff else 'false' }}">Edit</button>
+                                        <form action="{{ url_for('delete_parent', parent_id=parent.parent_id) }}" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this parent?')">Delete</button>
+                                        </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                <div class="mt-3">
-                    <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
-                        <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
-                        <button type="submit" class="btn btn-primary">Import from CSV</button>
-                    </form>
-                </div>
+                {% if user_role == 'admin' %}
+                    <div class="mt-3">
+                        <form action="{{ url_for('import_from_csv') }}" method="POST" enctype="multipart/form-data">
+                            <input type="file" name="file" accept=".csv" class="form-control d-inline-block w-auto" required>
+                            <button type="submit" class="btn btn-primary">Import from CSV</button>
+                        </form>
+                    </div>
+                {% endif %}
                 <!-- Add Parent Modal -->
-                <div class="modal fade" id="addParentModal" tabindex="-1" aria-labelledby="addParentModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="addParentModalLabel">Add Parent</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                {% if user_role == 'admin' %}
+                    <div class="modal fade" id="addParentModal" tabindex="-1" aria-labelledby="addParentModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="addParentModalLabel">Add Parent</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('add_parent') }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                            <label for="first_name">First Name</label>
+                                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="email">Email</label>
+                                            <input type="email" class="form-control" id="email" name="email">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="phone">Phone</label>
+                                            <input type="text" class="form-control" id="phone" name="phone">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="is_staff">Is Staff</label>
+                                            <input type="checkbox" id="is_staff" name="is_staff">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Add Parent</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('add_parent') }}" method="POST">
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label for="first_name">First Name</label>
-                                        <input type="text" class="form-control" id="first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="email">Email</label>
-                                        <input type="email" class="form-control" id="email" name="email">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="phone">Phone</label>
-                                        <input type="text" class="form-control" id="phone" name="phone">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="is_staff">Is Staff</label>
-                                        <input type="checkbox" id="is_staff" name="is_staff">
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Add Parent</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
-                <!-- Edit Parent Modal -->
-                <div class="modal fade" id="editParentModal" tabindex="-1" aria-labelledby="editParentModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editParentModalLabel">Edit Parent</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <!-- Edit Parent Modal -->
+                    <div class="modal fade" id="editParentModal" tabindex="-1" aria-labelledby="editParentModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editParentModalLabel">Edit Parent</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('edit_parent') }}" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" id="edit_parent_id" name="parent_id">
+                                        <div class="form-group">
+                                            <label for="edit_first_name">First Name</label>
+                                            <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_email">Email</label>
+                                            <input type="email" class="form-control" id="edit_email" name="email">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_phone">Phone</label>
+                                            <input type="text" class="form-control" id="edit_phone" name="phone">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_is_staff">Is Staff</label>
+                                            <input type="checkbox" id="edit_is_staff" name="is_staff">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('edit_parent') }}" method="POST">
-                                <div class="modal-body">
-                                    <input type="hidden" id="edit_parent_id" name="parent_id">
-                                    <div class="form-group">
-                                        <label for="edit_first_name">First Name</label>
-                                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_email">Email</label>
-                                        <input type="email" class="form-control" id="edit_email" name="email">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_phone">Phone</label>
-                                        <input type="text" class="form-control" id="edit_phone" name="phone">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_is_staff">Is Staff</label>
-                                        <input type="checkbox" id="edit_is_staff" name="is_staff">
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
-            {% elif active_tab == 'teachers' %}
+                {% endif %}
+            {% elif active_tab == 'teachers' and user_role != 'parent' %}
                 <!-- Teachers Tab -->
                 <h2>Teachers</h2>
-                <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addTeacherModal">Add Teacher</button>
+                {% if user_role == 'admin' %}
+                    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addTeacherModal">Add Teacher</button>
+                {% endif %}
                 <table class="table table-striped">
                     <thead>
                         <tr>
@@ -372,91 +402,95 @@
                                 <td>{{ teacher.email or 'N/A' }}</td>
                                 <td>{{ teacher.phone | format_phone or 'N/A' }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning edit-teacher" data-bs-toggle="modal" data-bs-target="#editTeacherModal"
-                                            data-teacher-id="{{ teacher.teacher_id }}"
-                                            data-first-name="{{ teacher.first_name }}"
-                                            data-last-name="{{ teacher.last_name }}"
-                                            data-email="{{ teacher.email }}"
-                                            data-phone="{{ teacher.phone }}">Edit</button>
-                                    <form action="{{ url_for('delete_teacher', teacher_id=teacher.teacher_id) }}" method="POST" style="display:inline;">
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</button>
-                                    </form>
+                                    {% if user_role == 'admin' %}
+                                        <button class="btn btn-sm btn-warning edit-teacher" data-bs-toggle="modal" data-bs-target="#editTeacherModal"
+                                                data-teacher-id="{{ teacher.teacher_id }}"
+                                                data-first-name="{{ teacher.first_name }}"
+                                                data-last-name="{{ teacher.last_name }}"
+                                                data-email="{{ teacher.email }}"
+                                                data-phone="{{ teacher.phone }}">Edit</button>
+                                        <form action="{{ url_for('delete_teacher', teacher_id=teacher.teacher_id) }}" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</button>
+                                        </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 <!-- Add Teacher Modal -->
-                <div class="modal fade" id="addTeacherModal" tabindex="-1" aria-labelledby="addTeacherModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="addTeacherModalLabel">Add Teacher</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                {% if user_role == 'admin' %}
+                    <div class="modal fade" id="addTeacherModal" tabindex="-1" aria-labelledby="addTeacherModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="addTeacherModalLabel">Add Teacher</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('add_teacher') }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                            <label for="first_name">First Name</label>
+                                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="email">Email</label>
+                                            <input type="email" class="form-control" id="email" name="email" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="phone">Phone</label>
+                                            <input type="text" class="form-control" id="phone" name="phone" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Add Teacher</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('add_teacher') }}" method="POST">
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label for="first_name">First Name</label>
-                                        <input type="text" class="form-control" id="first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="email">Email</label>
-                                        <input type="email" class="form-control" id="email" name="email" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="phone">Phone</label>
-                                        <input type="text" class="form-control" id="phone" name="phone" required>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Add Teacher</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
-                <!-- Edit Teacher Modal -->
-                <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editTeacherModalLabel">Edit Teacher</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <!-- Edit Teacher Modal -->
+                    <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editTeacherModalLabel">Edit Teacher</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('edit_teacher') }}" method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" id="edit_teacher_id" name="teacher_id">
+                                        <div class="form-group">
+                                            <label for="edit_first_name">First Name</label>
+                                            <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_last_name">Last Name</label>
+                                            <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_email">Email</label>
+                                            <input type="email" class="form-control" id="edit_email" name="email">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="edit_phone">Phone</label>
+                                            <input type="text" class="form-control" id="edit_phone" name="phone">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form action="{{ url_for('edit_teacher') }}" method="POST">
-                                <div class="modal-body">
-                                    <input type="hidden" id="edit_teacher_id" name="teacher_id">
-                                    <div class="form-group">
-                                        <label for="edit_first_name">First Name</label>
-                                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_last_name">Last Name</label>
-                                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_email">Email</label>
-                                        <input type="email" class="form-control" id="edit_email" name="email">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_phone">Phone</label>
-                                        <input type="text" class="form-control" id="edit_phone" name="phone">
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                </div>
-                            </form>
                         </div>
                     </div>
-                </div>
+                {% endif %}
             {% elif active_tab == 'tuition' %}
                 <!-- Tuition Tab -->
                 <h2>Tuition</h2>
@@ -486,14 +520,16 @@
                                 <td>{{ 'Yes' if t.has_sibling_discount else 'No' }}</td>
                                 <td>{{ 'Yes' if t.is_staff else 'No' }}</td>
                                 <td>
-                                    <a href="{{ url_for('edit_tuition', tuition_id=t.tuition_id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                    {% if user_role == 'admin' %}
+                                        <a href="{{ url_for('edit_tuition', tuition_id=t.tuition_id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 <!-- Edit Tuition Modal -->
-                {% if tuition_edit %}
+                {% if tuition_edit and user_role == 'admin' %}
                     <div class="modal fade" id="editTuitionModal" tabindex="-1" aria-labelledby="editTuitionModalLabel" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -596,7 +632,7 @@
         });
 
         // Tuition Modal Auto-Show
-        {% if tuition_edit %}
+        {% if tuition_edit and user_role == 'admin' %}
             const editTuitionModal = new bootstrap.Modal(document.getElementById('editTuitionModal'));
             editTuitionModal.show();
             document.getElementById('grade').addEventListener('change', function() {
