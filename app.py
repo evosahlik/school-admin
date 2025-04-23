@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import io
 import uuid
+import re
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default-secret-key')
@@ -56,6 +57,38 @@ def format_phone(phone):
     return f"({digits[:3]}){digits[3:6]}-{digits[6:]}"
 
 app.jinja_env.filters['format_phone'] = format_phone
+
+def parse_student_name(name):
+    """Parse StudentName into first_name and last_name, handling nicknames."""
+    if not name or not isinstance(name, str):
+        return None, None
+    # Remove leading/trailing spaces and quotes
+    name = name.strip().strip('"')
+    # Match patterns like "Last, First (Nickname)" or "Last, First"
+    match = re.match(r"([^,]+),\s*([^\(]+)(?:\s*\((.+)\))?", name)
+    if not match:
+        return None, None
+    last_name = match.group(1).strip()
+    first_name = match.group(2).strip()
+    # Use nickname as first_name if present, otherwise keep first_name
+    first_name = match.group(3).strip() if match.group(3) else first_name
+    return first_name, last_name
+
+def normalize_grade(grade):
+    """Normalize Grade to grade_level (e.g., '9th Grade' -> '9', 'Kindergarten' -> 'K')."""
+    if not grade or not isinstance(grade, str):
+        return None
+    grade = grade.strip().lower()
+    if 'kindergarten' in grade:
+        return 'K'
+    # Match '9th Grade', '3rd Grade', etc.
+    match = re.match(r"(\d+)(?:st|nd|rd|th)\s*grade", grade)
+    if match:
+        return match.group(1)
+    # Fallback: return as-is if numeric
+    if grade.isdigit():
+        return grade
+    return None
 
 def calculate_student_tuition(grade, days):
     pricing = {
@@ -384,74 +417,115 @@ def import_from_csv():
         print(f"CSV headers: {list(df.columns)}")
         print(f"CSV rows: {len(df)}")
 
-        student_mappings = {
-            'student_id': ['Student ID', 'ID', 'StudentID'],
-            'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
-            'last_name': ['Last Name', 'LastName', 'Surname'],
-            'grade_level': ['Grade Level', 'Grade', 'Year'],
-            'email': ['Email', 'E-mail'],
-            'phone': ['Phone', 'Phone Number', 'Contact'],
-            'medicines': ['Medicines', 'Medication'],
-            'allergies': ['Allergies', 'Allergy'],
-            'medical_conditions': ['Medical Conditions', 'Medical', 'Conditions'],
-            'comments': ['Comments', 'Notes']
-        }
-        parent_mappings = {
-            'parent_id': ['Parent ID', 'ID', 'ParentID'],
-            'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
-            'last_name': ['Last Name', 'LastName', 'Surname'],
-            'email': ['Email', 'E-mail'],
-            'phone': ['Phone', 'Phone Number', 'Contact'],
-            'is_staff': ['Is Staff', 'Staff', 'Employee']
-        }
+        # Normalize column names (strip spaces)
+        df.columns = [col.strip() for col in df.columns]
 
-        table = None
-        mappings = None
-        parent_headers = ['email', 'phone', 'is_staff']
-        if any(any(h.lower() in [m.lower() for m in parent_mappings[field]] for h in df.columns) for field in parent_headers):
-            table = 'parents'
-            mappings = parent_mappings
-        elif any(any(h.lower() == m.lower() for m in student_mappings['first_name']) for h in df.columns):
+        # Check for students.csv format (StudentName, Grade)
+        if 'StudentName' in df.columns and 'Grade' in df.columns:
             table = 'students'
-            mappings = student_mappings
+            required = ['StudentName', 'Grade']
+            if not all(col in df.columns for col in required):
+                flash(f'Missing required columns: {", ".join(r for r in required if r not in df.columns)}')
+                print(f"Error: Missing required columns: {', '.join(r for r in required if r not in df.columns)}")
+                return redirect(request.referrer or url_for('students'))
+
+            for _, row in df.iterrows():
+                first_name, last_name = parse_student_name(row['StudentName'])
+                grade_level = normalize_grade(row['Grade'])
+                if not first_name or not last_name or not grade_level:
+                    print(f"Skipping invalid row: {row.to_dict()}")
+                    continue
+                data = {
+                    'student_id': str(uuid.uuid4()),
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'grade_level': grade_level,
+                    'email': None,
+                    'phone': None,
+                    'medicines': None,
+                    'allergies': None,
+                    'medical_conditions': None,
+                    'comments': None
+                }
+                print(f"Inserting student record: {data}")
+                supabase.table(table).insert(data).execute()
+
+        # Existing logic for other formats
         else:
-            flash('Invalid CSV: No recognizable First Name column')
-            print("Error: No recognizable First Name column")
-            return redirect(request.referrer or url_for('students'))
+            student_mappings = {
+                'student_id': ['Student ID', 'ID', 'StudentID'],
+                'first_name': ['First Name', 'FirstName', 'Given Name', 'Name', 'StudentName'],
+                'last_name': ['Last Name', 'LastName', 'Surname'],
+                'grade_level': ['Grade Level', 'Grade', 'Year'],
+                'email': ['Email', 'E-mail'],
+                'phone': ['Phone', 'Phone Number', 'Contact'],
+                'medicines': ['Medicines', 'Medication'],
+                'allergies': ['Allergies', 'Allergy'],
+                'medical_conditions': ['Medical Conditions', 'Medical', 'Conditions'],
+                'comments': ['Comments', 'Notes']
+            }
+            parent_mappings = {
+                'parent_id': ['Parent ID', 'ID', 'ParentID'],
+                'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
+                'last_name': ['Last Name', 'LastName', 'Surname'],
+                'email': ['Email', 'E-mail'],
+                'phone': ['Phone', 'Phone Number', 'Contact'],
+                'is_staff': ['Is Staff', 'Staff', 'Employee']
+            }
 
-        column_map = {}
-        for supabase_field, possible_headers in mappings.items():
-            for header in possible_headers:
-                if header in df.columns or header.lower() in [c.lower() for c in df.columns]:
-                    column_map[supabase_field] = next(c for c in df.columns if c.lower() == header.lower())
-                    break
+            table = None
+            mappings = None
+            parent_headers = ['email', 'phone', 'is_staff']
+            if any(any(h.lower() in [m.lower() for m in parent_mappings[field]] for h in df.columns) for field in parent_headers):
+                table = 'parents'
+                mappings = parent_mappings
+            elif any(any(h.lower() == m.lower() for m in student_mappings['first_name']) for h in df.columns):
+                table = 'students'
+                mappings = student_mappings
+            else:
+                flash('Invalid CSV: No recognizable First Name or StudentName column')
+                print("Error: No recognizable First Name or StudentName column")
+                return redirect(request.referrer or url_for('students'))
 
-        required = ['first_name', 'last_name'] if table == 'parents' else ['first_name', 'last_name', 'grade_level']
-        if not all(f in column_map for f in required):
-            flash(f'Missing required columns: {", ".join(r for r in required if r not in column_map)}')
-            print(f"Error: Missing required columns: {', '.join(r for r in required if r not in column_map)}")
-            return redirect(request.referrer or url_for('students'))
+            column_map = {}
+            for supabase_field, possible_headers in mappings.items():
+                for header in possible_headers:
+                    if header in df.columns or header.lower() in [c.lower() for c in df.columns]:
+                        column_map[supabase_field] = next(c for c in df.columns if c.lower() == header.lower())
+                        break
 
-        for _, row in df.iterrows():
-            data = {}
-            for supabase_field, csv_column in column_map.items():
-                value = row[csv_column] if csv_column in row and pd.notna(row[csv_column]) else None
-                if supabase_field == 'is_staff':
-                    data[supabase_field] = value.lower() in ['yes', 'true', '1'] if value else False
-                elif supabase_field == 'grade_level':
-                    data[supabase_field] = str(value).lower() if value else None
-                elif supabase_field == 'phone':
-                    data[supabase_field] = format_phone(str(value)) if value else None
-                else:
-                    data[supabase_field] = value
+            required = ['first_name', 'last_name'] if table == 'parents' else ['first_name', 'last_name', 'grade_level']
+            if not all(f in column_map for f in required):
+                flash(f'Missing required columns: {", ".join(r for r in required if r not in column_map)}')
+                print(f"Error: Missing required columns: {', '.join(r for r in required if r not in column_map)}")
+                return redirect(request.referrer or url_for('students'))
 
-            if 'student_id' not in column_map and table == 'students':
-                data['student_id'] = str(uuid.uuid4())
-            if 'parent_id' not in column_map and table == 'parents':
-                data['parent_id'] = str(uuid.uuid4())
+            for _, row in df.iterrows():
+                data = {}
+                for supabase_field, csv_column in column_map.items():
+                    value = row[csv_column] if csv_column in row and pd.notna(row[csv_column]) else None
+                    if supabase_field == 'first_name' and csv_column == 'StudentName':
+                        first_name, last_name = parse_student_name(value)
+                        if first_name and last_name:
+                            data['first_name'] = first_name
+                            data['last_name'] = last_name
+                        continue
+                    if supabase_field == 'grade_level' and csv_column == 'Grade':
+                        data['grade_level'] = normalize_grade(value) if value else None
+                    elif supabase_field == 'is_staff':
+                        data[supabase_field] = value.lower() in ['yes', 'true', '1'] if value else False
+                    elif supabase_field == 'phone':
+                        data[supabase_field] = format_phone(str(value)) if value else None
+                    else:
+                        data[supabase_field] = value
 
-            print(f"Inserting {table} record: {data}")
-            supabase.table(table).insert(data).execute()
+                if 'student_id' not in column_map and table == 'students':
+                    data['student_id'] = str(uuid.uuid4())
+                if 'parent_id' not in column_map and table == 'parents':
+                    data['parent_id'] = str(uuid.uuid4())
+
+                print(f"Inserting {table} record: {data}")
+                supabase.table(table).insert(data).execute()
 
         flash(f"Successfully imported {len(df)} records into {table}")
         print(f"Flashed: Successfully imported {len(df)} records into {table}")
