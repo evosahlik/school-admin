@@ -647,12 +647,17 @@ def classes():
         processed_classes = []
         for cls in classes_data:
             cls_copy = cls.copy()
-            cls_copy['students'] = class_students_map.get(cls['class_id'], [])
+            cls_copy['students'] = class_students_map.get(cls['class_id'], [])  # Ensure empty list if no students
             processed_classes.append(cls_copy)
 
         # Log class data (sanitized: exclude student details)
         class_summary = [{'class_id': c['class_id'], 'name': c['name'], 'days': c['days'], 'teacher_id': c['teacher_id']} for c in processed_classes]
         logger.info(f"Classes tab data: {class_summary}")
+
+        # Debug logging for student IDs
+        for cls in processed_classes:
+            student_ids = [s['student_id'] for s in cls['students']]
+            logger.debug(f"Class {cls['class_id']} student IDs: {student_ids}")
 
         return render_template('index.html',
                              active_tab='classes',
@@ -673,14 +678,18 @@ def add_class():
         flash('Access denied: Admins only', 'danger')
         return redirect(url_for('classes'))
     try:
+        days_list = request.form.getlist('days')
+        if not days_list:
+            flash('At least one day must be selected', 'danger')
+            return redirect(url_for('classes'))
         data = {
             'class_id': str(uuid.uuid4()),
             'name': request.form.get('name'),
-            'days': request.form.get('days'),
+            'days': ','.join(days_list),  # Join checkbox values
             'teacher_id': request.form.get('teacher_id') or None
         }
-        if not data['name'] or not data['days']:
-            flash('Name and Days are required', 'danger')
+        if not data['name']:
+            flash('Name is required', 'danger')
             return redirect(url_for('classes'))
         supabase.table('classes').insert(data).execute()
         logger.info(f"Added class: {data}")
@@ -691,7 +700,6 @@ def add_class():
         logger.error(f"Error adding class: {str(e)}")
         return redirect(url_for('classes'))
 
-# Edit class route
 @app.route('/edit_class', methods=['POST'])
 @login_required
 def edit_class():
@@ -700,13 +708,17 @@ def edit_class():
         return redirect(url_for('classes'))
     try:
         class_id = request.form.get('class_id')
+        days_list = request.form.getlist('days')
+        if not days_list:
+            flash('At least one day must be selected', 'danger')
+            return redirect(url_for('classes'))
         data = {
             'name': request.form.get('name'),
-            'days': request.form.get('days'),
+            'days': ','.join(days_list),  # Join checkbox values
             'teacher_id': request.form.get('teacher_id') or None
         }
-        if not data['name'] or not data['days']:
-            flash('Name and Days are required', 'danger')
+        if not data['name']:
+            flash('Name is required', 'danger')
             return redirect(url_for('classes'))
         supabase.table('classes').update(data).eq('class_id', class_id).execute()
         logger.info(f"Edited class: {class_id}, data: {data}")
@@ -716,7 +728,7 @@ def edit_class():
         flash(f"Error updating class: {str(e)}", 'danger')
         logger.error(f"Error updating class: {str(e)}")
         return redirect(url_for('classes'))
-
+    
 # Delete class route
 @app.route('/delete_class/<class_id>', methods=['POST'])
 @login_required
@@ -726,8 +738,9 @@ def delete_class(class_id):
         return redirect(url_for('classes'))
     try:
         # Check for enrolled students
-        students = supabase.table('class_students').select('student_id').eq('class_id', class_id).execute()
-        if students.data:
+        students_response = supabase.table('class_students').select('student_id').eq('class_id', class_id).execute()
+        if students_response.data and len(students_response.data) > 0:
+            logger.warning(f"Attempted to delete class {class_id} with {len(students_response.data)} enrolled students")
             flash('Cannot delete class with enrolled students', 'danger')
             return redirect(url_for('classes'))
         supabase.table('classes').delete().eq('class_id', class_id).execute()
@@ -736,9 +749,9 @@ def delete_class(class_id):
         return redirect(url_for('classes'))
     except Exception as e:
         flash(f"Error deleting class: {str(e)}", 'danger')
-        logger.error(f"Error deleting class: {str(e)}")
+        logger.error(f"Error deleting class {class_id}: {str(e)}")
         return redirect(url_for('classes'))
-
+    
 # Assign students to class route
 @app.route('/assign_students_to_class', methods=['POST'])
 @login_required
@@ -748,23 +761,24 @@ def assign_students_to_class():
         return redirect(url_for('classes'))
     try:
         class_id = request.form.get('class_id')
-        student_ids = request.form.getlist('student_ids')
+        student_ids = request.form.getlist('student_ids')  # May be empty
         # Remove existing assignments
         supabase.table('class_students').delete().eq('class_id', class_id).execute()
-        # Add new assignments
-        for student_id in student_ids:
-            if student_id:
-                supabase.table('class_students').insert({
-                    'class_id': class_id,
-                    'student_id': student_id
-                }).execute()
-        logger.info(f"Assigned students to class {class_id}: {student_ids}")
+        # Add new assignments (if any)
+        if student_ids:
+            for student_id in student_ids:
+                if student_id:
+                    supabase.table('class_students').insert({
+                        'class_id': class_id,
+                        'student_id': student_id
+                    }).execute()
+        logger.info(f"Assigned students to class {class_id}: {student_ids or 'none'}")
         flash('Students assigned successfully', 'success')
         return redirect(url_for('classes'))
     except Exception as e:
         flash(f"Error assigning students: {str(e)}", 'danger')
-        logger.error(f"Error assigning students: {str(e)}")
+        logger.error(f"Error assigning students to class {class_id}: {str(e)}")
         return redirect(url_for('classes'))
-
+    
 if __name__ == '__main__':
     app.run(debug=True)
