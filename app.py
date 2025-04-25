@@ -576,23 +576,58 @@ def teachers():
         return render_template('index.html', active_tab='teachers', teachers=[], user_role=current_user.role)
 
 # Placeholder teacher routes
+# New Add Teacher route
 @app.route('/add_teacher', methods=['POST'])
 @login_required
 def add_teacher():
     if current_user.role != 'admin':
         flash('Access denied: Admins only', 'danger')
         return redirect(url_for('teachers'))
-    flash('Add teacher not implemented yet', 'warning')
-    return redirect(url_for('teachers'))
-
+    try:
+        data = {
+            'teacher_id': str(uuid.uuid4()),
+            'first_name': request.form.get('first_name'),
+            'last_name': request.form.get('last_name'),
+            'email': request.form.get('email') or None,
+            'phone': request.form.get('phone') or None
+        }
+        if not data['first_name'] or not data['last_name']:
+            flash('First Name and Last Name are required', 'danger')
+            return redirect(url_for('teachers'))
+        supabase.table('teachers').insert(data).execute()
+        logger.info(f"Added teacher: {data['teacher_id']}, {data['first_name']} {data['last_name']}")
+        flash('Teacher added successfully', 'success')
+        return redirect(url_for('teachers'))
+    except Exception as e:
+        flash(f"Error adding teacher: {str(e)}", 'danger')
+        logger.error(f"Error adding teacher: {str(e)}")
+        return redirect(url_for('teachers'))
+    
 @app.route('/edit_teacher', methods=['POST'])
 @login_required
 def edit_teacher():
     if current_user.role != 'admin':
         flash('Access denied: Admins only', 'danger')
         return redirect(url_for('teachers'))
-    flash('Edit teacher not implemented yet', 'warning')
-    return redirect(url_for('teachers'))
+    try:
+        teacher_id = request.form.get('teacher_id')
+        data = {
+            'first_name': request.form.get('first_name'),
+            'last_name': request.form.get('last_name'),
+            'email': request.form.get('email') or None,
+            'phone': request.form.get('phone') or None
+        }
+        if not data['first_name'] or not data['last_name']:
+            flash('First Name and Last Name are required', 'danger')
+            return redirect(url_for('teachers'))
+        supabase.table('teachers').update(data).eq('teacher_id', teacher_id).execute()
+        logger.info(f"Edited teacher: {teacher_id}, {data['first_name']} {data['last_name']}")
+        flash('Teacher updated successfully', 'success')
+        return redirect(url_for('teachers'))
+    except Exception as e:
+        flash(f"Error updating teacher: {str(e)}", 'danger')
+        logger.error(f"Error updating teacher: {str(e)}")
+        return redirect(url_for('teachers'))
 
 @app.route('/delete_teacher/<teacher_id>', methods=['POST'])
 @login_required
@@ -600,8 +635,21 @@ def delete_teacher(teacher_id):
     if current_user.role != 'admin':
         flash('Access denied: Admins only', 'danger')
         return redirect(url_for('teachers'))
-    flash('Delete teacher not implemented yet', 'warning')
-    return redirect(url_for('teachers'))
+    try:
+        # Check if teacher is assigned to any classes
+        classes_response = supabase.table('classes').select('class_id').eq('teacher_id', teacher_id).execute()
+        if classes_response.data and len(classes_response.data) > 0:
+            logger.warning(f"Attempted to delete teacher {teacher_id} assigned to {len(classes_response.data)} classes")
+            flash('Cannot delete teacher assigned to classes', 'danger')
+            return redirect(url_for('teachers'))
+        supabase.table('teachers').delete().eq('teacher_id', teacher_id).execute()
+        logger.info(f"Deleted teacher: {teacher_id}")
+        flash('Teacher deleted successfully', 'success')
+        return redirect(url_for('teachers'))
+    except Exception as e:
+        flash(f"Error deleting teacher: {str(e)}", 'danger')
+        logger.error(f"Error deleting teacher {teacher_id}: {str(e)}")
+        return redirect(url_for('teachers'))
 
 # Tuition route
 @app.route('/tuition', methods=['GET'])
