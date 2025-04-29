@@ -818,6 +818,94 @@ def assign_students_to_class():
         logger.error(f"Error assigning students to class {class_id}: {str(e)}")
         return redirect(url_for('classes'))
 
+# Classrooms route
+@app.route('/classrooms', methods=['GET'])
+@login_required
+def classrooms():
+    if current_user.role != 'admin':
+        flash('Access denied: Admins only', 'danger')
+        return redirect(url_for('students'))
+    try:
+        classrooms_response = supabase.table('classrooms').select('*').execute()
+        classrooms_data = sorted(classrooms_response.data, key=lambda x: (x['building_number'] or '', x['room_number'] or ''))
+        classroom_summary = [{'classroom_id': c['classroom_id'], 'building_number': c['building_number'], 'room_number': c['room_number']} for c in classrooms_data]
+        logger.info(f"Classrooms tab data: {classroom_summary}")
+        return render_template('index.html',
+                             active_tab='classrooms',
+                             classrooms=classrooms_data,
+                             user_role=current_user.role)
+    except Exception as e:
+        flash(f"Error fetching classrooms: {str(e)}", 'danger')
+        logger.error(f"Error fetching classrooms: {str(e)}")
+        return render_template('index.html', active_tab='classrooms', classrooms=[], user_role=current_user.role)
+
+# Add classroom route
+@app.route('/add_classroom', methods=['POST'])
+@login_required
+def add_classroom():
+    if current_user.role != 'admin':
+        flash('Access denied: Admins only', 'danger')
+        return redirect(url_for('classrooms'))
+    try:
+        data = {
+            'classroom_id': str(uuid.uuid4()),
+            'building_number': request.form.get('building_number'),
+            'room_number': request.form.get('room_number')
+        }
+        if not data['building_number'] or not data['room_number']:
+            flash('Building Number and Room Number are required', 'danger')
+            return redirect(url_for('classrooms'))
+        supabase.table('classrooms').insert(data).execute()
+        logger.info(f"Added classroom: {data}")
+        flash('Classroom added successfully', 'success')
+        return redirect(url_for('classrooms'))
+    except Exception as e:
+        flash(f"Error adding classroom: {str(e)}", 'danger')
+        logger.error(f"Error adding classroom: {str(e)}")
+        return redirect(url_for('classrooms'))
+
+# Edit classroom route
+@app.route('/edit_classroom', methods=['POST'])
+@login_required
+def edit_classroom():
+    if current_user.role != 'admin':
+        flash('Access denied: Admins only', 'danger')
+        return redirect(url_for('classrooms'))
+    try:
+        classroom_id = request.form.get('classroom_id')
+        data = {
+            'building_number': request.form.get('building_number'),
+            'room_number': request.form.get('room_number')
+        }
+        if not data['building_number'] or not data['room_number']:
+            flash('Building Number and Room Number are required', 'danger')
+            return redirect(url_for('classrooms'))
+        supabase.table('classrooms').update(data).eq('classroom_id', classroom_id).execute()
+        logger.info(f"Edited classroom: {classroom_id}, data: {data}")
+        flash('Classroom updated successfully', 'success')
+        return redirect(url_for('classrooms'))
+    except Exception as e:
+        flash(f"Error updating classroom: {str(e)}", 'danger')
+        logger.error(f"Error updating classroom: {str(e)}")
+        return redirect(url_for('classrooms'))
+
+# Delete classroom route
+@app.route('/delete_classroom/<classroom_id>', methods=['POST'])
+@login_required
+def delete_classroom(classroom_id):
+    if current_user.role != 'admin':
+        flash('Access denied: Admins only', 'danger')
+        return redirect(url_for('classrooms'))
+    try:
+        supabase.table('classrooms').delete().eq('classroom_id', classroom_id).execute()
+        logger.info(f"Deleted classroom: {classroom_id}")
+        flash('Classroom deleted successfully', 'success')
+        return redirect(url_for('classrooms'))
+    except Exception as e:
+        flash(f"Error deleting classroom: {str(e)}", 'danger')
+        logger.error(f"Error deleting classroom {classroom_id}: {str(e)}")
+        return redirect(url_for('classrooms'))
+
 # Users route
 @app.route('/users', methods=['GET'])
 @login_required
