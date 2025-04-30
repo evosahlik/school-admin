@@ -20,9 +20,7 @@ logging.basicConfig(
 handler = RotatingFileHandler('app.log', maxBytes=1000000, backupCount=5)
 handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger = logging.getLogger(__name__)
-if not logger.handlers:  # Prevent duplicate handlers
-    handler = RotatingFileHandler('app.log', maxBytes=1000000, backupCount=5)
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+if not logger.handlers:
     logger.addHandler(handler)
 
 app = Flask(__name__)
@@ -38,13 +36,13 @@ supabase_url = os.getenv('SUPABASE_URL')
 supabase_key = os.getenv('SUPABASE_KEY')
 
 if not supabase_url or not supabase_key:
-    print("Error: SUPABASE_URL and SUPABASE_KEY must be set in .env file")
+    logger.error("Missing SUPABASE_URL or SUPABASE_KEY in .env file")
     raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY in .env file")
 
 try:
     supabase: Client = create_client(supabase_url, supabase_key)
 except Exception as e:
-    print(f"Error initializing Supabase client: {str(e)}")
+    logger.error(f"Error initializing Supabase client: {str(e)}")
     raise
 
 # User class for Flask-Login
@@ -75,38 +73,31 @@ def format_phone(phone):
 app.jinja_env.filters['format_phone'] = format_phone
 
 def parse_student_name(name):
-    """Parse StudentName into first_name and last_name, handling nicknames."""
     if not name or not isinstance(name, str):
         return None, None
-    # Remove leading/trailing spaces and quotes
     name = name.strip().strip('"')
-    # Match patterns like "Last, First (Nickname)" or "Last, First"
     match = re.match(r"([^,]+),\s*([^\(]+)(?:\s*\((.+)\))?", name)
     if not match:
         return None, None
     last_name = match.group(1).strip()
     first_name = match.group(2).strip()
-    # Use nickname as first_name if present, otherwise keep first_name
     first_name = match.group(3).strip() if match.group(3) else first_name
     return first_name, last_name
 
 def normalize_grade(grade):
-    """Normalize Grade to grade_level (e.g., '9th Grade' -> '9', 'Kindergarten' -> 'K')."""
     if not grade or not isinstance(grade, str):
         return None
     grade = grade.strip().lower()
     if 'kindergarten' in grade:
         return 'K'
-    # Match '9th Grade', '3rd Grade', etc.
     match = re.match(r"(\d+)(?:st|nd|rd|th)\s*grade", grade)
     if match:
         return match.group(1)
-    # Fallback: return as-is if numeric
     if grade.isdigit():
         return grade
     return None
 
-def calculate_student_tuition(grade, days):
+def calculate_student_tuition(grade, assignments):
     pricing = {
         'K': {'morning': 2000, 'afternoon': 3000},
         '1-2': {'full': 4000, 'enrichment': 1500, 'academic': 2000},
@@ -115,9 +106,10 @@ def calculate_student_tuition(grade, days):
     }
     total = 0
     grade_key = 'K' if grade == 'K' else '1-2' if grade in ['1', '2'] else '3-8' if grade in [str(i) for i in range(3, 9)] else '9-12'
-    for day, type in days.items():
-        if type and type in pricing[grade_key]:
-            total += pricing[grade_key][type]
+    for assignment in assignments:
+        program_type = assignment.get('program_type', '').lower()
+        if program_type in pricing[grade_key]:
+            total += pricing[grade_key][program_type]
     return total
 
 def apply_sibling_discount(total_amount, parent_id, parent_student_count):
@@ -125,7 +117,14 @@ def apply_sibling_discount(total_amount, parent_id, parent_student_count):
         return total_amount * 0.9
     return total_amount
 
-# Login route
+def format_days(days_array):
+    if not days_array:
+        return ""
+    day_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    sorted_days = sorted([int(day) for day in days_array if day is not None])
+    return ', '.join(day_names[day] for day in sorted_days if 0 <= day < 7)
+
+# Routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -142,7 +141,6 @@ def login():
         flash('Invalid email or password', 'danger')
     return render_template('login.html')
 
-# Logout route
 @app.route('/logout')
 @login_required
 def logout():
@@ -150,7 +148,6 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('login'))
 
-# Students route
 @app.route('/', methods=['GET'])
 @app.route('/students', methods=['GET'])
 @login_required
@@ -188,11 +185,10 @@ def students():
                              parents=parents_data,
                              user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching students: {str(e)}")
         logger.error(f"Error fetching students: {str(e)}")
+        flash(f"Error fetching students: {str(e)}", 'danger')
         return render_template('index.html', active_tab='students', students=[], parents=[], user_role=current_user.role)
-    
-# Add student route
+
 @app.route('/add_student', methods=['POST'])
 @login_required
 def add_student():
@@ -213,34 +209,20 @@ def add_student():
             'medical_conditions': request.form.get('medical_conditions') or None,
             'comments': request.form.get('comments') or None
         }
-        if not data['first_name'] or not data['last_name'] or not data['grade_level']:
-            flash('First Name, Last Name, and Grade Level are required', 'danger')
-            return redirect(url_for('students'))
-        # Insert student
         supabase.table('students').insert(data).execute()
-        # Insert parent relationships
         parent_ids = request.form.getlist('parent_ids')
-        print(f"Adding student {data['first_name']} {data['last_name']}, parent_ids: {parent_ids}")
-        if not parent_ids:
-            flash('Warning: No parents selected', 'warning')
-        valid_parent_ids = supabase.table('parents').select('parent_id').in_('parent_id', parent_ids).execute().data
-        valid_parent_ids = [p['parent_id'] for p in valid_parent_ids]
         for parent_id in parent_ids:
-            if parent_id and parent_id in valid_parent_ids:
+            if parent_id:
                 supabase.table('student_parents').insert({
                     'student_id': student_id,
                     'parent_id': parent_id
                 }).execute()
-            else:
-                print(f"Invalid parent_id: {parent_id}")
         flash('Student added successfully', 'success')
-        return redirect(url_for('students'))
     except Exception as e:
+        logger.error(f"Error adding student: {str(e)}")
         flash(f"Error adding student: {str(e)}", 'danger')
-        print(f"Error adding student: {str(e)}")
-        return redirect(url_for('students'))
+    return redirect(url_for('students'))
 
-# Edit student route
 @app.route('/edit_student', methods=['POST'])
 @login_required
 def edit_student():
@@ -260,52 +242,37 @@ def edit_student():
             'medical_conditions': request.form.get('medical_conditions') or None,
             'comments': request.form.get('comments') or None
         }
-        if not data['first_name'] or not data['last_name'] or not data['grade_level']:
-            flash('First Name, Last Name, and Grade Level are required', 'danger')
-            return redirect(url_for('students'))
-        # Update student
         supabase.table('students').update(data).eq('student_id', student_id).execute()
-        # Update parent relationships
-        parent_ids = request.form.getlist('parent_ids')
-        logger.info(f"Editing student {student_id}, parent_ids: {parent_ids}")
-        if not parent_ids:
-            flash('Warning: No parents selected', 'warning')
         supabase.table('student_parents').delete().eq('student_id', student_id).execute()
-        valid_parent_ids = supabase.table('parents').select('parent_id').in_('parent_id', parent_ids).execute().data
-        valid_parent_ids = [p['parent_id'] for p in valid_parent_ids]        
+        parent_ids = request.form.getlist('parent_ids')
         for parent_id in parent_ids:
-            if parent_id and parent_id in valid_parent_ids:
+            if parent_id:
                 supabase.table('student_parents').insert({
                     'student_id': student_id,
                     'parent_id': parent_id
                 }).execute()
-            else:
-                logger.warning(f"Invalid parent_id: {parent_id}")
         flash('Student updated successfully', 'success')
-        return redirect(url_for('students'))
     except Exception as e:
-        flash(f"Error updating student: {str(e)}", 'danger')
-        logger.error(f"Error updating student: {str(e)}")
-        return redirect(url_for('students'))
-    
-# Delete student route
+        logger.error(f"Error editing student: {str(e)}")
+        flash(f"Error editing student: {str(e)}", 'danger')
+    return redirect(url_for('students'))
+
 @app.route('/delete_student/<student_id>', methods=['POST'])
 @login_required
 def delete_student(student_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
         supabase.table('student_parents').delete().eq('student_id', student_id).execute()
+        supabase.table('class_students').delete().eq('student_id', student_id).execute()
         supabase.table('students').delete().eq('student_id', student_id).execute()
         flash('Student deleted successfully', 'success')
-        return redirect(url_for('students'))
     except Exception as e:
+        logger.error(f"Error deleting student: {str(e)}")
         flash(f"Error deleting student: {str(e)}", 'danger')
-        print(f"Error deleting student: {str(e)}")
-        return redirect(url_for('students'))
+    return redirect(url_for('students'))
 
-# Parents route
 @app.route('/parents', methods=['GET'])
 @login_required
 def parents():
@@ -313,54 +280,42 @@ def parents():
         flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        parents_response = supabase.table('parents').select('*').execute()
-        sorted_parents = sorted(parents_response.data, key=lambda x: x['last_name'].lower() if x['last_name'] else '')
-        parent_summary = [{k: v for k, v in p.items() if k in ['parent_id', 'first_name', 'last_name', 'is_staff']} for p in sorted_parents]
-        logger.info(f"Parent tab data: {parent_summary}")
-        return render_template('index.html', 
-                             active_tab='parents', 
-                             parents=sorted_parents,
-                             user_role=current_user.role)
+        response = supabase.table('parents').select('*').execute()
+        parents_data = sorted(response.data, key=lambda x: x['last_name'].lower() if x['last_name'] else '')
+        return render_template('index.html', active_tab='parents', parents=parents_data, user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching parents: {str(e)}")
         logger.error(f"Error fetching parents: {str(e)}")
+        flash(f"Error fetching parents: {str(e)}", 'danger')
         return render_template('index.html', active_tab='parents', parents=[], user_role=current_user.role)
-    
-# Add parent route
+
 @app.route('/add_parent', methods=['POST'])
 @login_required
 def add_parent():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('parents'))
     try:
+        parent_id = str(uuid.uuid4())
         data = {
-            'parent_id': str(uuid.uuid4()),
+            'parent_id': parent_id,
             'first_name': request.form.get('first_name'),
             'last_name': request.form.get('last_name'),
             'email': request.form.get('email') or None,
             'phone': format_phone(request.form.get('phone')) or None,
-            'is_staff': 'is_staff' in request.form
+            'is_staff': request.form.get('is_staff') == 'on'
         }
-        if not data['first_name'] or not data['last_name']:
-            flash('First Name and Last Name are required', 'danger')
-            return redirect(url_for('parents'))
         supabase.table('parents').insert(data).execute()
-        parent_summary = {k: v for k, v in data.items() if k in ['parent_id', 'first_name', 'last_name', 'is_staff']}
-        logger.info(f"Added parent: {parent_summary}")
         flash('Parent added successfully', 'success')
-        return redirect(url_for('parents'))
     except Exception as e:
-        flash(f"Error adding parent: {str(e)}", 'danger')
         logger.error(f"Error adding parent: {str(e)}")
-        return redirect(url_for('parents'))
-    
-# Edit parent route
+        flash(f"Error adding parent: {str(e)}", 'danger')
+    return redirect(url_for('parents'))
+
 @app.route('/edit_parent', methods=['POST'])
 @login_required
 def edit_parent():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('parents'))
     try:
         parent_id = request.form.get('parent_id')
@@ -369,192 +324,30 @@ def edit_parent():
             'last_name': request.form.get('last_name'),
             'email': request.form.get('email') or None,
             'phone': format_phone(request.form.get('phone')) or None,
-            'is_staff': 'is_staff' in request.form
+            'is_staff': request.form.get('is_staff') == 'on'
         }
-        if not data['first_name'] or not data['last_name']:
-            flash('First Name and Last Name are required', 'danger')
-            return redirect(url_for('parents'))
         supabase.table('parents').update(data).eq('parent_id', parent_id).execute()
-        parent_summary = {k: v for k, v in data.items() if k in ['first_name', 'last_name', 'is_staff']}
-        parent_summary['parent_id'] = parent_id
-        logger.info(f"Edited parent: {parent_summary}")
         flash('Parent updated successfully', 'success')
-        return redirect(url_for('parents'))
     except Exception as e:
-        flash(f"Error updating parent: {str(e)}", 'danger')
-        logger.error(f"Error updating parent: {str(e)}")
-        return redirect(url_for('parents'))
-    
-# Delete parent route
+        logger.error(f"Error editing parent: {str(e)}")
+        flash(f"Error editing parent: {str(e)}", 'danger')
+    return redirect(url_for('parents'))
+
 @app.route('/delete_parent/<parent_id>', methods=['POST'])
 @login_required
 def delete_parent(parent_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('parents'))
     try:
-        students = supabase.table('student_parents').select('student_id').eq('parent_id', parent_id).execute()
-        if students.data:
-            flash('Cannot delete parent with associated students', 'danger')
-            return redirect(url_for('parents'))
+        supabase.table('student_parents').delete().eq('parent_id', parent_id).execute()
         supabase.table('parents').delete().eq('parent_id', parent_id).execute()
-        logger.info(f"Deleted parent: {parent_id}")
         flash('Parent deleted successfully', 'success')
-        return redirect(url_for('parents'))
     except Exception as e:
-        flash(f"Error deleting parent: {str(e)}", 'danger')
         logger.error(f"Error deleting parent: {str(e)}")
-        return redirect(url_for('parents'))
-    
-# Import CSV route
-@app.route('/import_from_csv', methods=['POST'])
-@login_required
-def import_from_csv():
-    if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
-        return redirect(request.referrer or url_for('students'))
-    try:
-        print("Starting CSV import")
-        if 'file' not in request.files:
-            flash('No file uploaded')
-            print("Error: No file uploaded")
-            return redirect(request.referrer or url_for('students'))
-        file = request.files['file']
-        if not file.filename.endswith('.csv'):
-            flash('Please upload a CSV file')
-            print("Error: File is not a CSV")
-            return redirect(request.referrer or url_for('students'))
+        flash(f"Error deleting parent: {str(e)}", 'danger')
+    return redirect(url_for('parents'))
 
-        file_content = file.read()
-        print(f"File size: {len(file_content)} bytes")
-        if len(file_content) == 0:
-            flash('Uploaded file is empty')
-            print("Error: Uploaded file is empty")
-            return redirect(request.referrer or url_for('students'))
-
-        df = pd.read_csv(io.BytesIO(file_content))
-        print(f"CSV headers: {list(df.columns)}")
-        print(f"CSV rows: {len(df)}")
-
-        # Normalize column names (strip spaces)
-        df.columns = [col.strip() for col in df.columns]
-
-        # Check for students.csv format (StudentName, Grade)
-        if 'StudentName' in df.columns and 'Grade' in df.columns:
-            table = 'students'
-            required = ['StudentName', 'Grade']
-            if not all(col in df.columns for col in required):
-                flash(f'Missing required columns: {", ".join(r for r in required if r not in df.columns)}')
-                print(f"Error: Missing required columns: {', '.join(r for r in required if r not in df.columns)}")
-                return redirect(request.referrer or url_for('students'))
-
-            for _, row in df.iterrows():
-                first_name, last_name = parse_student_name(row['StudentName'])
-                grade_level = normalize_grade(row['Grade'])
-                if not first_name or not last_name or not grade_level:
-                    print(f"Skipping invalid row: {row.to_dict()}")
-                    continue
-                data = {
-                    'student_id': str(uuid.uuid4()),
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'grade_level': grade_level,
-                    'email': None,
-                    'phone': None,
-                    'medicines': None,
-                    'allergies': None,
-                    'medical_conditions': None,
-                    'comments': None
-                }
-                print(f"Inserting student record: {data}")
-                supabase.table(table).insert(data).execute()
-
-        # Existing logic for other formats
-        else:
-            student_mappings = {
-                'student_id': ['Student ID', 'ID', 'StudentID'],
-                'first_name': ['First Name', 'FirstName', 'Given Name', 'Name', 'StudentName'],
-                'last_name': ['Last Name', 'LastName', 'Surname'],
-                'grade_level': ['Grade Level', 'Grade', 'Year'],
-                'email': ['Email', 'E-mail'],
-                'phone': ['Phone', 'Phone Number', 'Contact'],
-                'medicines': ['Medicines', 'Medication'],
-                'allergies': ['Allergies', 'Allergy'],
-                'medical_conditions': ['Medical Conditions', 'Medical', 'Conditions'],
-                'comments': ['Comments', 'Notes']
-            }
-            parent_mappings = {
-                'parent_id': ['Parent ID', 'ID', 'ParentID'],
-                'first_name': ['First Name', 'FirstName', 'Given Name', 'Name'],
-                'last_name': ['Last Name', 'LastName', 'Surname'],
-                'email': ['Email', 'E-mail'],
-                'phone': ['Phone', 'Phone Number', 'Contact'],
-                'is_staff': ['Is Staff', 'Staff', 'Employee']
-            }
-
-            table = None
-            mappings = None
-            parent_headers = ['email', 'phone', 'is_staff']
-            if any(any(h.lower() in [m.lower() for m in parent_mappings[field]] for h in df.columns) for field in parent_headers):
-                table = 'parents'
-                mappings = parent_mappings
-            elif any(any(h.lower() == m.lower() for m in student_mappings['first_name']) for h in df.columns):
-                table = 'students'
-                mappings = student_mappings
-            else:
-                flash('Invalid CSV: No recognizable First Name or StudentName column')
-                print("Error: No recognizable First Name or StudentName column")
-                return redirect(request.referrer or url_for('students'))
-
-            column_map = {}
-            for supabase_field, possible_headers in mappings.items():
-                for header in possible_headers:
-                    if header in df.columns or header.lower() in [c.lower() for c in df.columns]:
-                        column_map[supabase_field] = next(c for c in df.columns if c.lower() == header.lower())
-                        break
-
-            required = ['first_name', 'last_name'] if table == 'parents' else ['first_name', 'last_name', 'grade_level']
-            if not all(f in column_map for f in required):
-                flash(f'Missing required columns: {", ".join(r for r in required if r not in column_map)}')
-                print(f"Error: Missing required columns: {', '.join(r for r in required if r not in column_map)}")
-                return redirect(request.referrer or url_for('students'))
-
-            for _, row in df.iterrows():
-                data = {}
-                for supabase_field, csv_column in column_map.items():
-                    value = row[csv_column] if csv_column in row and pd.notna(row[csv_column]) else None
-                    if supabase_field == 'first_name' and csv_column == 'StudentName':
-                        first_name, last_name = parse_student_name(value)
-                        if first_name and last_name:
-                            data['first_name'] = first_name
-                            data['last_name'] = last_name
-                        continue
-                    if supabase_field == 'grade_level' and csv_column == 'Grade':
-                        data['grade_level'] = normalize_grade(value) if value else None
-                    elif supabase_field == 'is_staff':
-                        data[supabase_field] = value.lower() in ['yes', 'true', '1'] if value else False
-                    elif supabase_field == 'phone':
-                        data[supabase_field] = format_phone(str(value)) if value else None
-                    else:
-                        data[supabase_field] = value
-
-                if 'student_id' not in column_map and table == 'students':
-                    data['student_id'] = str(uuid.uuid4())
-                if 'parent_id' not in column_map and table == 'parents':
-                    data['parent_id'] = str(uuid.uuid4())
-
-                print(f"Inserting {table} record: {data}")
-                supabase.table(table).insert(data).execute()
-
-        flash(f"Successfully imported {len(df)} records into {table}")
-        print(f"Flashed: Successfully imported {len(df)} records into {table}")
-        return redirect(request.referrer or url_for('students'))
-    except Exception as e:
-        flash(f"Error importing CSV: {str(e)}")
-        print(f"Error importing CSV: {str(e)}")
-        return redirect(request.referrer or url_for('students'))
-
-# Teachers route
 @app.route('/teachers', methods=['GET'])
 @login_required
 def teachers():
@@ -562,48 +355,41 @@ def teachers():
         flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        teachers_response = supabase.table('teachers').select('*').execute()
-        return render_template('index.html', 
-                             active_tab='teachers', 
-                             teachers=teachers_response.data,
-                             user_role=current_user.role)
+        response = supabase.table('teachers').select('*').execute()
+        teachers_data = sorted(response.data, key=lambda x: x['last_name'].lower() if x['last_name'] else '')
+        return render_template('index.html', active_tab='teachers', teachers=teachers_data, user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching teachers: {str(e)}")
-        print(f"Error fetching teachers: {str(e)}")
+        logger.error(f"Error fetching teachers: {str(e)}")
+        flash(f"Error fetching teachers: {str(e)}", 'danger')
         return render_template('index.html', active_tab='teachers', teachers=[], user_role=current_user.role)
 
-# Add Teacher route
 @app.route('/add_teacher', methods=['POST'])
 @login_required
 def add_teacher():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('teachers'))
     try:
+        teacher_id = str(uuid.uuid4())
         data = {
-            'teacher_id': str(uuid.uuid4()),
+            'teacher_id': teacher_id,
             'first_name': request.form.get('first_name'),
             'last_name': request.form.get('last_name'),
             'email': request.form.get('email') or None,
-            'phone': request.form.get('phone') or None
+            'phone': format_phone(request.form.get('phone')) or None
         }
-        if not data['first_name'] or not data['last_name']:
-            flash('First Name and Last Name are required', 'danger')
-            return redirect(url_for('teachers'))
         supabase.table('teachers').insert(data).execute()
-        logger.info(f"Added teacher: {data['teacher_id']}, {data['first_name']} {data['last_name']}")
         flash('Teacher added successfully', 'success')
-        return redirect(url_for('teachers'))
     except Exception as e:
-        flash(f"Error adding teacher: {str(e)}", 'danger')
         logger.error(f"Error adding teacher: {str(e)}")
-        return redirect(url_for('teachers'))
-    
+        flash(f"Error adding teacher: {str(e)}", 'danger')
+    return redirect(url_for('teachers'))
+
 @app.route('/edit_teacher', methods=['POST'])
 @login_required
 def edit_teacher():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('teachers'))
     try:
         teacher_id = request.form.get('teacher_id')
@@ -611,57 +397,29 @@ def edit_teacher():
             'first_name': request.form.get('first_name'),
             'last_name': request.form.get('last_name'),
             'email': request.form.get('email') or None,
-            'phone': request.form.get('phone') or None
+            'phone': format_phone(request.form.get('phone')) or None
         }
-        if not data['first_name'] or not data['last_name']:
-            flash('First Name and Last Name are required', 'danger')
-            return redirect(url_for('teachers'))
         supabase.table('teachers').update(data).eq('teacher_id', teacher_id).execute()
-        logger.info(f"Edited teacher: {teacher_id}, {data['first_name']} {data['last_name']}")
         flash('Teacher updated successfully', 'success')
-        return redirect(url_for('teachers'))
     except Exception as e:
-        flash(f"Error updating teacher: {str(e)}", 'danger')
-        logger.error(f"Error updating teacher: {str(e)}")
-        return redirect(url_for('teachers'))
+        logger.error(f"Error editing teacher: {str(e)}")
+        flash(f"Error editing teacher: {str(e)}", 'danger')
+    return redirect(url_for('teachers'))
 
 @app.route('/delete_teacher/<teacher_id>', methods=['POST'])
 @login_required
 def delete_teacher(teacher_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('teachers'))
     try:
-        classes_response = supabase.table('classes').select('class_id').eq('teacher_id', teacher_id).execute()
-        if classes_response.data and len(classes_response.data) > 0:
-            logger.warning(f"Attempted to delete teacher {teacher_id} assigned to {len(classes_response.data)} classes")
-            flash('Cannot delete teacher assigned to classes', 'danger')
-            return redirect(url_for('teachers'))
         supabase.table('teachers').delete().eq('teacher_id', teacher_id).execute()
-        logger.info(f"Deleted teacher: {teacher_id}")
         flash('Teacher deleted successfully', 'success')
-        return redirect(url_for('teachers'))
     except Exception as e:
+        logger.error(f"Error deleting teacher: {str(e)}")
         flash(f"Error deleting teacher: {str(e)}", 'danger')
-        logger.error(f"Error deleting teacher {teacher_id}: {str(e)}")
-        return redirect(url_for('teachers'))
+    return redirect(url_for('teachers'))
 
-# Tuition route
-@app.route('/tuition', methods=['GET'])
-@login_required
-def tuition():
-    try:
-        tuition_data = []
-        return render_template('index.html', 
-                             active_tab='tuition', 
-                             tuition=tuition_data,
-                             user_role=current_user.role)
-    except Exception as e:
-        flash(f"Error fetching tuition: {str(e)}")
-        print(f"Error fetching tuition: {str(e)}")
-        return render_template('index.html', active_tab='tuition', tuition=[], user_role=current_user.role)
-
-# Classes route
 @app.route('/classes', methods=['GET'])
 @login_required
 def classes():
@@ -669,207 +427,222 @@ def classes():
         flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        classes_response = supabase.table('classes').select('*, teachers(first_name, last_name)').execute()
-        class_students_response = supabase.table('class_students').select('class_id, student_id').execute()
-        students_response = supabase.table('students').select('student_id, first_name, last_name').execute()
+        # Fetch classes with teachers and classrooms
+        classes_response = supabase.table('classes').select('*, teachers(*), classrooms(*)').execute()
+        # Fetch class-student relationships
+        class_students_response = supabase.table('class_students').select('class_id, student_id, program_type').execute()
+        # Fetch student details
+        students_response = supabase.table('students').select('student_id, first_name, last_name, grade_level').execute()
+        # Fetch teachers and classrooms for modals
+        teachers_response = supabase.table('teachers').select('teacher_id, first_name, last_name').execute()
+        classrooms_response = supabase.table('classrooms').select('classroom_id, building_number, room_number').execute()
 
         classes_data = classes_response.data
         class_students_data = class_students_response.data
         students_data = students_response.data
+        teachers_data = teachers_response.data
+        classrooms_data = classrooms_response.data
 
-        student_map = {s['student_id']: s for s in students_data}
-        class_students_map = {}
+        # Build class-student mapping
+        class_student_map = {}
         for cs in class_students_data:
             class_id = cs['class_id']
-            student_id = cs['student_id']
-            if class_id not in class_students_map:
-                class_students_map[class_id] = []
-            if student_id in student_map:
-                class_students_map[class_id].append(student_map[student_id])
+            if class_id not in class_student_map:
+                class_student_map[class_id] = []
+            class_student_map[class_id].append({
+                'student_id': cs['student_id'],
+                'program_type': cs['program_type']
+            })
 
         processed_classes = []
         for cls in classes_data:
             cls_copy = cls.copy()
-            cls_copy['students'] = class_students_map.get(cls['class_id'], [])
+            cls_copy['days_array'] = cls['days'] or []
+            cls_copy['days'] = format_days(cls['days'])
+            # Attach related data
+            cls_copy['teachers'] = cls.get('teachers', None)
+            cls_copy['classrooms'] = cls.get('classrooms', None)
+            # Get students for this class
+            student_assignments = class_student_map.get(cls['class_id'], [])
+            cls_copy['students'] = [
+                {**s, 'program_type': sa['program_type']}
+                for s in students_data
+                for sa in student_assignments
+                if s['student_id'] == sa['student_id']
+            ]
             processed_classes.append(cls_copy)
 
-        class_summary = [{'class_id': c['class_id'], 'name': c['name'], 'days': c['days'], 'teacher_id': c['teacher_id']} for c in processed_classes]
-        logger.info(f"Classes tab data: {class_summary}")
-
-        for cls in processed_classes:
-            student_ids = [s['student_id'] for s in cls['students']]
-            logger.debug(f"Class {cls['class_id']} student IDs: {student_ids}")
-
-        return render_template('index.html',
-                             active_tab='classes',
+        processed_classes = sorted(processed_classes, key=lambda x: x['name'].lower() if x['name'] else '')
+        return render_template('index.html', 
+                             active_tab='classes', 
                              classes=processed_classes,
-                             teachers=supabase.table('teachers').select('*').execute().data,
+                             teachers=teachers_data,
+                             classrooms=classrooms_data,
                              students=students_data,
                              user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching classes: {str(e)}", 'danger')
         logger.error(f"Error fetching classes: {str(e)}")
-        return render_template('index.html', active_tab='classes', classes=[], teachers=[], students=[], user_role=current_user.role)
+        flash(f"Error fetching classes: {str(e)}", 'danger')
+        return render_template('index.html', active_tab='classes', classes=[], teachers=[], classrooms=[], students=[], user_role=current_user.role)
 
-# Add class route
+def normalize_term(term):
+    if not term:
+        return None
+    term = term.strip()
+    if term.startswith('Spring'):
+        return 'Spring'
+    if term.startswith('Fall'):
+        return 'Fall'
+    if term.startswith('Summer'):
+        return 'Summer'
+    return term
+
 @app.route('/add_class', methods=['POST'])
 @login_required
 def add_class():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classes'))
     try:
-        days_list = request.form.getlist('days')
-        if not days_list:
-            flash('At least one day must be selected', 'danger')
+        valid_terms = ['Semester 1', 'Semester 2', 'Both']
+        term = request.form.get('term')
+        if term not in valid_terms:
+            flash(f"Invalid term: {term}. Must be one of {', '.join(valid_terms)}", 'danger')
             return redirect(url_for('classes'))
+        
+        class_id = str(uuid.uuid4())
+        days = request.form.getlist('days')
         data = {
-            'class_id': str(uuid.uuid4()),
+            'class_id': class_id,
             'name': request.form.get('name'),
-            'days': ','.join(days_list),
-            'teacher_id': request.form.get('teacher_id') or None
+            'days': days if days else None,
+            'teacher_id': request.form.get('teacher_id') or None,
+            'grade_level': request.form.get('grade_level') or None,
+            'max_size': int(request.form.get('max_size')) if request.form.get('max_size') else None,
+            'term': term,
+            'schedule_block': int(request.form.get('schedule_block')) if request.form.get('schedule_block') else None,
+            'classroom_id': request.form.get('classroom_id') or None
         }
-        if not data['name']:
-            flash('Name is required', 'danger')
-            return redirect(url_for('classes'))
         supabase.table('classes').insert(data).execute()
-        logger.info(f"Added class: {data}")
         flash('Class added successfully', 'success')
-        return redirect(url_for('classes'))
     except Exception as e:
-        flash(f"Error adding class: {str(e)}", 'danger')
         logger.error(f"Error adding class: {str(e)}")
-        return redirect(url_for('classes'))
+        flash(f"Error adding class: {str(e)}", 'danger')
+    return redirect(url_for('classes'))
 
 @app.route('/edit_class', methods=['POST'])
 @login_required
 def edit_class():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classes'))
     try:
-        class_id = request.form.get('class_id')
-        days_list = request.form.getlist('days')
-        if not days_list:
-            flash('At least one day must be selected', 'danger')
+        valid_terms = ['Semester 1', 'Semester 2', 'Both']
+        term = request.form.get('term')
+        if term not in valid_terms:
+            flash(f"Invalid term: {term}. Must be one of {', '.join(valid_terms)}", 'danger')
             return redirect(url_for('classes'))
+        
+        class_id = request.form.get('class_id')
+        days = request.form.getlist('days')
         data = {
             'name': request.form.get('name'),
-            'days': ','.join(days_list),
-            'teacher_id': request.form.get('teacher_id') or None
+            'days': days if days else None,
+            'teacher_id': request.form.get('teacher_id') or None,
+            'grade_level': request.form.get('grade_level') or None,
+            'max_size': int(request.form.get('max_size')) if request.form.get('max_size') else None,
+            'term': term,
+            'schedule_block': int(request.form.get('schedule_block')) if request.form.get('schedule_block') else None,
+            'classroom_id': request.form.get('classroom_id') or None
         }
-        if not data['name']:
-            flash('Name is required', 'danger')
-            return redirect(url_for('classes'))
         supabase.table('classes').update(data).eq('class_id', class_id).execute()
-        logger.info(f"Edited class: {class_id}, data: {data}")
         flash('Class updated successfully', 'success')
-        return redirect(url_for('classes'))
     except Exception as e:
-        flash(f"Error updating class: {str(e)}", 'danger')
-        logger.error(f"Error updating class: {str(e)}")
-        return redirect(url_for('classes'))
-    
-# Delete class route
+        logger.error(f"Error editing class: {str(e)}")
+        flash(f"Error editing class: {str(e)}", 'danger')
+    return redirect(url_for('classes'))
+
 @app.route('/delete_class/<class_id>', methods=['POST'])
 @login_required
 def delete_class(class_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classes'))
     try:
-        students_response = supabase.table('class_students').select('student_id').eq('class_id', class_id).execute()
-        if students_response.data and len(students_response.data) > 0:
-            logger.warning(f"Attempted to delete class {class_id} with {len(students_response.data)} enrolled students")
-            flash('Cannot delete class with enrolled students', 'danger')
-            return redirect(url_for('classes'))
+        supabase.table('class_students').delete().eq('class_id', class_id).execute()
         supabase.table('classes').delete().eq('class_id', class_id).execute()
-        logger.info(f"Deleted class: {class_id}")
         flash('Class deleted successfully', 'success')
-        return redirect(url_for('classes'))
     except Exception as e:
+        logger.error(f"Error deleting class: {str(e)}")
         flash(f"Error deleting class: {str(e)}", 'danger')
-        logger.error(f"Error deleting class {class_id}: {str(e)}")
-        return redirect(url_for('classes'))
-    
-# Assign students to class route
+    return redirect(url_for('classes'))
+
 @app.route('/assign_students_to_class', methods=['POST'])
 @login_required
 def assign_students_to_class():
     if current_user.role not in ['admin', 'teacher']:
-        flash('Access denied: Admins or teachers only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classes'))
     try:
         class_id = request.form.get('class_id')
         student_ids = request.form.getlist('student_ids')
+        program_types = request.form.getlist('program_types')  # Expect one program_type per student
+        # Clear existing student assignments
         supabase.table('class_students').delete().eq('class_id', class_id).execute()
-        if student_ids:
-            for student_id in student_ids:
-                if student_id:
-                    supabase.table('class_students').insert({
-                        'class_id': class_id,
-                        'student_id': student_id
-                    }).execute()
-        logger.info(f"Assigned students to class {class_id}: {student_ids or 'none'}")
+        # Assign new students with program_type
+        for student_id, program_type in zip(student_ids, program_types):
+            if student_id and program_type:
+                supabase.table('class_students').insert({
+                    'class_id': class_id,
+                    'student_id': student_id,
+                    'program_type': program_type or None
+                }).execute()
         flash('Students assigned successfully', 'success')
-        return redirect(url_for('classes'))
     except Exception as e:
+        logger.error(f"Error assigning students to class: {str(e)}")
         flash(f"Error assigning students: {str(e)}", 'danger')
-        logger.error(f"Error assigning students to class {class_id}: {str(e)}")
-        return redirect(url_for('classes'))
+    return redirect(url_for('classes'))
 
-# Classrooms route
 @app.route('/classrooms', methods=['GET'])
 @login_required
 def classrooms():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        classrooms_response = supabase.table('classrooms').select('*').execute()
-        classrooms_data = sorted(classrooms_response.data, key=lambda x: (x['building_number'] or '', x['room_number'] or ''))
-        classroom_summary = [{'classroom_id': c['classroom_id'], 'building_number': c['building_number'], 'room_number': c['room_number']} for c in classrooms_data]
-        logger.info(f"Classrooms tab data: {classroom_summary}")
-        return render_template('index.html',
-                             active_tab='classrooms',
-                             classrooms=classrooms_data,
-                             user_role=current_user.role)
+        response = supabase.table('classrooms').select('*').execute()
+        classrooms_data = sorted(response.data, key=lambda x: (x['building_number'].lower(), x['room_number'].lower()) if x['building_number'] and x['room_number'] else ('', ''))
+        return render_template('index.html', active_tab='classrooms', classrooms=classrooms_data, user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching classrooms: {str(e)}", 'danger')
         logger.error(f"Error fetching classrooms: {str(e)}")
+        flash(f"Error fetching classrooms: {str(e)}", 'danger')
         return render_template('index.html', active_tab='classrooms', classrooms=[], user_role=current_user.role)
 
-# Add classroom route
 @app.route('/add_classroom', methods=['POST'])
 @login_required
 def add_classroom():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classrooms'))
     try:
+        classroom_id = str(uuid.uuid4())
         data = {
-            'classroom_id': str(uuid.uuid4()),
+            'classroom_id': classroom_id,
             'building_number': request.form.get('building_number'),
             'room_number': request.form.get('room_number')
         }
-        if not data['building_number'] or not data['room_number']:
-            flash('Building Number and Room Number are required', 'danger')
-            return redirect(url_for('classrooms'))
         supabase.table('classrooms').insert(data).execute()
-        logger.info(f"Added classroom: {data}")
         flash('Classroom added successfully', 'success')
-        return redirect(url_for('classrooms'))
     except Exception as e:
-        flash(f"Error adding classroom: {str(e)}", 'danger')
         logger.error(f"Error adding classroom: {str(e)}")
-        return redirect(url_for('classrooms'))
+        flash(f"Error adding classroom: {str(e)}", 'danger')
+    return redirect(url_for('classrooms'))
 
-# Edit classroom route
 @app.route('/edit_classroom', methods=['POST'])
 @login_required
 def edit_classroom():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classrooms'))
     try:
         classroom_id = request.form.get('classroom_id')
@@ -877,160 +650,213 @@ def edit_classroom():
             'building_number': request.form.get('building_number'),
             'room_number': request.form.get('room_number')
         }
-        if not data['building_number'] or not data['room_number']:
-            flash('Building Number and Room Number are required', 'danger')
-            return redirect(url_for('classrooms'))
         supabase.table('classrooms').update(data).eq('classroom_id', classroom_id).execute()
-        logger.info(f"Edited classroom: {classroom_id}, data: {data}")
         flash('Classroom updated successfully', 'success')
-        return redirect(url_for('classrooms'))
     except Exception as e:
-        flash(f"Error updating classroom: {str(e)}", 'danger')
-        logger.error(f"Error updating classroom: {str(e)}")
-        return redirect(url_for('classrooms'))
+        logger.error(f"Error editing classroom: {str(e)}")
+        flash(f"Error editing classroom: {str(e)}", 'danger')
+    return redirect(url_for('classrooms'))
 
-# Delete classroom route
 @app.route('/delete_classroom/<classroom_id>', methods=['POST'])
 @login_required
 def delete_classroom(classroom_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classrooms'))
     try:
         supabase.table('classrooms').delete().eq('classroom_id', classroom_id).execute()
-        logger.info(f"Deleted classroom: {classroom_id}")
         flash('Classroom deleted successfully', 'success')
-        return redirect(url_for('classrooms'))
     except Exception as e:
+        logger.error(f"Error deleting classroom: {str(e)}")
         flash(f"Error deleting classroom: {str(e)}", 'danger')
-        logger.error(f"Error deleting classroom {classroom_id}: {str(e)}")
-        return redirect(url_for('classrooms'))
+    return redirect(url_for('classrooms'))
 
-# Users route
 @app.route('/users', methods=['GET'])
 @login_required
 def users():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        users_response = supabase.table('users').select('*').execute()
+        users_response = supabase.table('users').select('user_id, email, role, parent_id').execute()
         parents_response = supabase.table('parents').select('parent_id, first_name, last_name').execute()
-        parents_data = {p['parent_id']: p for p in parents_response.data}
-        processed_users = []
-        for user in users_response.data:
-            user_copy = user.copy()
-            if user['parent_id']:
-                parent = parents_data.get(user['parent_id'])
-                user_copy['parent_name'] = f"{parent['last_name']}, {parent['first_name']}" if parent else 'Unknown'
-            else:
-                user_copy['parent_name'] = None
-            processed_users.append(user_copy)
-        return render_template('index.html',
-                             active_tab='users',
-                             users=processed_users,
-                             parents=parents_response.data,
-                             user_role=current_user.role)
+        users_data = users_response.data
+        parents_data = parents_response.data
+        parent_map = {p['parent_id']: f"{p['last_name']}, {p['first_name']}" for p in parents_data}
+        for user in users_data:
+            user['parent_name'] = parent_map.get(user['parent_id'], None)
+        users_data = sorted(users_data, key=lambda x: x['email'].lower() if x['email'] else '')
+        return render_template('index.html', active_tab='users', users=users_data, parents=parents_data, user_role=current_user.role)
     except Exception as e:
-        flash(f"Error fetching users: {str(e)}", 'danger')
         logger.error(f"Error fetching users: {str(e)}")
+        flash(f"Error fetching users: {str(e)}", 'danger')
         return render_template('index.html', active_tab='users', users=[], parents=[], user_role=current_user.role)
 
-# Add user route
 @app.route('/add_user', methods=['POST'])
 @login_required
 def add_user():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('users'))
     try:
+        user_id = str(uuid.uuid4())
         email = request.form.get('email')
         password = request.form.get('password')
         role = request.form.get('role')
         parent_id = request.form.get('parent_id') or None
-        if not email or not password or not role:
-            flash('Email, Password, and Role are required', 'danger')
-            return redirect(url_for('users'))
-        if role not in ['admin', 'teacher', 'parent']:
-            flash('Invalid role selected', 'danger')
-            return redirect(url_for('users'))
         if role == 'parent' and not parent_id:
             flash('Parent ID is required for parent role', 'danger')
             return redirect(url_for('users'))
-        password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
         data = {
-            'user_id': str(uuid.uuid4()),
+            'user_id': user_id,
             'email': email,
-            'password_hash': password_hash,
+            'password_hash': bcrypt.generate_password_hash(password).decode('utf-8'),
             'role': role,
             'parent_id': parent_id
         }
         supabase.table('users').insert(data).execute()
-        logger.info(f"Added user: {data['user_id']}, email: {email}, role: {role}")
         flash('User added successfully', 'success')
-        return redirect(url_for('users'))
     except Exception as e:
-        flash(f"Error adding user: {str(e)}", 'danger')
         logger.error(f"Error adding user: {str(e)}")
-        return redirect(url_for('users'))
+        flash(f"Error adding user: {str(e)}", 'danger')
+    return redirect(url_for('users'))
 
-# Edit user route
 @app.route('/edit_user', methods=['POST'])
 @login_required
 def edit_user():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('users'))
     try:
         user_id = request.form.get('user_id')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        role = request.form.get('role')
-        parent_id = request.form.get('parent_id') or None
-        if not email or not role:
-            flash('Email and Role are required', 'danger')
-            return redirect(url_for('users'))
-        if role not in ['admin', 'teacher', 'parent']:
-            flash('Invalid role selected', 'danger')
-            return redirect(url_for('users'))
-        if role == 'parent' and not parent_id:
+        data = {
+            'email': request.form.get('email'),
+            'role': request.form.get('role'),
+            'parent_id': request.form.get('parent_id') or None
+        }
+        if data['role'] == 'parent' and not data['parent_id']:
             flash('Parent ID is required for parent role', 'danger')
             return redirect(url_for('users'))
-        data = {
-            'email': email,
-            'role': role,
-            'parent_id': parent_id
-        }
+        password = request.form.get('password')
         if password:
             data['password_hash'] = bcrypt.generate_password_hash(password).decode('utf-8')
         supabase.table('users').update(data).eq('user_id', user_id).execute()
-        logger.info(f"Edited user: {user_id}, email: {email}, role: {role}")
         flash('User updated successfully', 'success')
-        return redirect(url_for('users'))
     except Exception as e:
-        flash(f"Error updating user: {str(e)}", 'danger')
-        logger.error(f"Error updating user: {str(e)}")
-        return redirect(url_for('users'))
+        logger.error(f"Error editing user: {str(e)}")
+        flash(f"Error editing user: {str(e)}", 'danger')
+    return redirect(url_for('users'))
 
-# Delete user route
 @app.route('/delete_user/<user_id>', methods=['POST'])
 @login_required
 def delete_user(user_id):
     if current_user.role != 'admin':
-        flash('Access denied: Admins only', 'danger')
+        flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('users'))
     try:
-        if user_id == current_user.id:
-            flash('Cannot delete your own user account', 'danger')
-            return redirect(url_for('users'))
         supabase.table('users').delete().eq('user_id', user_id).execute()
-        logger.info(f"Deleted user: {user_id}")
         flash('User deleted successfully', 'success')
-        return redirect(url_for('users'))
     except Exception as e:
+        logger.error(f"Error deleting user: {str(e)}")
         flash(f"Error deleting user: {str(e)}", 'danger')
-        logger.error(f"Error deleting user {user_id}: {str(e)}")
-        return redirect(url_for('users'))
+    return redirect(url_for('users'))
+
+@app.route('/tuition', methods=['GET'])
+@login_required
+def tuition():
+    try:
+        students_response = supabase.table('students').select('student_id, first_name, last_name, grade_level').execute()
+        student_parents_response = supabase.table('student_parents').select('student_id, parent_id').execute()
+        class_students_response = supabase.table('class_students').select('class_id, student_id, program_type').execute()
+        classes_response = supabase.table('classes').select('class_id, name, days').execute()
+
+        students_data = students_response.data
+        student_parents_data = student_parents_response.data
+        class_students_data = class_students_response.data
+        classes_data = classes_response.data
+
+        # Build class-student mapping
+        student_classes_map = {}
+        for cs in class_students_data:
+            student_id = cs['student_id']
+            if student_id not in student_classes_map:
+                student_classes_map[student_id] = []
+            student_classes_map[student_id].append({
+                'class_id': cs['class_id'],
+                'program_type': cs['program_type']
+            })
+
+        parent_student_map = {}
+        for sp in student_parents_data:
+            parent_id = sp['parent_id']
+            student_id = sp['student_id']
+            if parent_id not in parent_student_map:
+                parent_student_map[parent_id] = []
+            parent_student_map[parent_id].append(student_id)
+
+        tuition_records = []
+        for student in students_data:
+            if current_user.role == 'parent':
+                parent_students = parent_student_map.get(current_user.parent_id, [])
+                if student['student_id'] not in parent_students:
+                    continue
+            assignments = student_classes_map.get(student['student_id'], [])
+            amount = calculate_student_tuition(student['grade_level'], assignments)
+            parent_id = next((sp['parent_id'] for sp in student_parents_data if sp['student_id'] == student['student_id']), None)
+            parent_student_count = {pid: len(sids) for pid, sids in parent_student_map.items()}
+            amount = apply_sibling_discount(amount, parent_id, parent_student_count)
+            status = 'Pending' if amount > 0 else 'No Charge'
+            tuition_records.append({
+                'student_name': f"{student['last_name']}, {student['first_name']}",
+                'grade': student['grade_level'],
+                'amount': f"${amount:.2f}",
+                'status': status
+            })
+        tuition_records = sorted(tuition_records, key=lambda x: x['student_name'].lower())
+        return render_template('index.html', active_tab='tuition', tuition=tuition_records, user_role=current_user.role)
+    except Exception as e:
+        logger.error(f"Error fetching tuition: {str(e)}")
+        flash(f"Error fetching tuition: {str(e)}", 'danger')
+        return render_template('index.html', active_tab='tuition', tuition=[], user_role=current_user.role)
+
+@app.route('/import_from_csv', methods=['POST'])
+@login_required
+def import_from_csv():
+    if current_user.role != 'admin':
+        flash('Access denied: Insufficient permissions', 'danger')
+        return redirect(url_for('students'))
+    try:
+        file = request.files['file']
+        if not file or not file.filename.endswith('.csv'):
+            flash('Please upload a valid CSV file', 'danger')
+            return redirect(url_for('students'))
+        df = pd.read_csv(io.StringIO(file.read().decode('utf-8')))
+        for _, row in df.iterrows():
+            first_name, last_name = parse_student_name(row.get('StudentName'))
+            if not first_name or not last_name:
+                continue
+            grade_level = normalize_grade(row.get('Grade'))
+            if not grade_level:
+                continue
+            student_id = str(uuid.uuid4())
+            data = {
+                'student_id': student_id,
+                'first_name': first_name,
+                'last_name': last_name,
+                'grade_level': grade_level,
+                'email': None,
+                'phone': None,
+                'medicines': None,
+                'allergies': None,
+                'medical_conditions': None,
+                'comments': None
+            }
+            supabase.table('students').insert(data).execute()
+        flash('Students imported successfully', 'success')
+    except Exception as e:
+        logger.error(f"Error importing CSV: {str(e)}")
+        flash(f"Error importing CSV: {str(e)}", 'danger')
+    return redirect(url_for('students'))
 
 if __name__ == '__main__':
     app.run(debug=True)

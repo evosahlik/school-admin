@@ -286,6 +286,11 @@
                     <th>Name</th>
                     <th>Days</th>
                     <th>Teacher</th>
+                    <th>Grade Level</th>
+                    <th>Max Size</th>
+                    <th>Term</th>
+                    <th>Schedule Block</th>
+                    <th>Classroom</th>
                     <th>Students</th>
                     {% if user_role in ['admin', 'teacher'] %}
                     <th>Actions</th>
@@ -297,10 +302,15 @@
                 <tr>
                     <td>{{ cls.name }}</td>
                     <td>{{ cls.days or '' }}</td>
-                    <td>{{ cls.teachers.first_name }} {{ cls.teachers.last_name }}</td>
+                    <td>{{ cls.teachers.first_name + ' ' + cls.teachers.last_name if cls.teachers else 'None' }}</td>
+                    <td>{{ cls.grade_level or '' }}</td>
+                    <td>{{ cls.max_size or 'N/A' }}</td>
+                    <td>{{ cls.term or '' }}</td>
+                    <td>{{ cls.schedule_block or 'N/A' }}</td>
+                    <td>{{ cls.classrooms.building_number + ' ' + cls.classrooms.room_number if cls.classrooms else 'None' }}</td>
                     <td>
                         {% for student in cls.students %}
-                            {{ student.last_name }}, {{ student.first_name }}{% if not loop.last %}; {% endif %}
+                            {{ student.last_name }}, {{ student.first_name }} ({{ student.program_type or 'N/A' }}){% if not loop.last %}; {% endif %}
                         {% else %}
                             None
                         {% endfor %}
@@ -311,27 +321,33 @@
                         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editClassModal"
                                 data-class-id="{{ cls.class_id }}"
                                 data-name="{{ cls.name | e }}"
-                                data-days="{{ cls.days | e }}"
-                                data-teacher-id="{{ cls.teacher_id or '' }}">Edit</button>
+                                data-days="{{ cls.days_array | join(',') }}"
+                                data-teacher-id="{{ cls.teacher_id or '' }}"
+                                data-grade-level="{{ cls.grade_level or '' }}"
+                                data-max-size="{{ cls.max_size or '' }}"
+                                data-term="{{ cls.term or '' }}"
+                                data-schedule-block="{{ cls.schedule_block or '' }}"
+                                data-classroom-id="{{ cls.classroom_id or '' }}">Edit</button>
                         <form method="POST" action="{{ url_for('delete_class', class_id=cls.class_id) }}" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this class?')">Delete</button>
                         </form>
                         {% endif %}
                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#assignStudentsModal"
                                 data-class-id="{{ cls.class_id }}"
-                                data-student-ids="{{ cls.students | map(attribute='student_id') | join(',') }}">Assign Students</button>
+                                data-student-ids="{{ cls.students | map(attribute='student_id') | join(',') }}"
+                                data-program-types="{{ cls.students | map(attribute='program_type') | join(',') }}">Assign Students</button>
                     </td>
                     {% endif %}
                 </tr>
                 {% else %}
-                <tr><td colspan="5">No classes found</td></tr>
+                <tr><td colspan="10">No classes found</td></tr>
                 {% endfor %}
             </tbody>
         </table>
         {% endif %}
 
         {% if active_tab == 'classrooms' %}
-        <h2>Classrooms</h2>
+        <h2>ClassBoards</h2>
         {% if user_role == 'admin' %}
         <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addClassroomModal">Add Classroom</button>
         {% endif %}
@@ -701,23 +717,20 @@
                 <form method="POST" action="{{ url_for('add_class') }}">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Class Name</label>
+                            <label for="name" class="form-label">Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Days</label>
-                            <div>
-                                <input type="checkbox" id="monday" name="days" value="Monday">
-                                <label for="monday">Monday</label>
-                                <input type="checkbox" id="tuesday" name="days" value="Tuesday">
-                                <label for="tuesday">Tuesday</label>
-                                <input type="checkbox" id="wednesday" name="days" value="Wednesday">
-                                <label for="wednesday">Wednesday</label>
-                                <input type="checkbox" id="thursday" name="days" value="Thursday">
-                                <label for="thursday">Thursday</label>
-                                <input type="checkbox" id="friday" name="days" value="Friday">
-                                <label for="friday">Friday</label>
-                            </div>
+                            <label for="days" class="form-label">Days</label>
+                            <select multiple class="form-control" id="days" name="days">
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label for="teacher_id" class="form-label">Teacher</label>
@@ -725,6 +738,35 @@
                                 <option value="">None</option>
                                 {% for teacher in teachers %}
                                 <option value="{{ teacher.teacher_id }}">{{ teacher.last_name }}, {{ teacher.first_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="grade_level" class="form-label">Grade Level</label>
+                            <input type="text" class="form-control" id="grade_level" name="grade_level">
+                        </div>
+                        <div class="mb-3">
+                            <label for="max_size" class="form-label">Max Size</label>
+                            <input type="number" class="form-control" id="max_size" name="max_size">
+                        </div>
+                        <div class="mb-3">
+                            <label for="term" class="form-label">Term</label>
+                            <select class="form-control" id="term" name="term" required>
+                                <option value="Semester 1">Semester 1</option>
+                                <option value="Semester 2">Semester 2</option>
+                                <option value="Both">Both</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="schedule_block" class="form-label">Schedule Block</label>
+                            <input type="number" class="form-control" id="schedule_block" name="schedule_block">
+                        </div>
+                        <div class="mb-3">
+                            <label for="classroom_id" class="form-label">Classroom</label>
+                            <select class="form-control" id="classroom_id" name="classroom_id">
+                                <option value="">None</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom.classroom_id }}">{{ classroom.building_number }} {{ classroom.room_number }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -748,32 +790,58 @@
                 </div>
                 <form method="POST" action="{{ url_for('edit_class') }}">
                     <div class="modal-body">
-                        <input type="hidden" id="edit_class_id" name="class_id">
+                        <input type="hidden" name="class_id" id="editClassId">
                         <div class="mb-3">
-                            <label for="edit_name" class="form-label">Class Name</label>
-                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                            <label for="editName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="editName" name="name" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Days</label>
-                            <div>
-                                <input type="checkbox" id="edit_monday" name="days" value="Monday">
-                                <label for="edit_monday">Monday</label>
-                                <input type="checkbox" id="edit_tuesday" name="days" value="Tuesday">
-                                <label for="edit_tuesday">Tuesday</label>
-                                <input type="checkbox" id="edit_wednesday" name="days" value="Wednesday">
-                                <label for="edit_wednesday">Wednesday</label>
-                                <input type="checkbox" id="edit_thursday" name="days" value="Thursday">
-                                <label for="edit_thursday">Thursday</label>
-                                <input type="checkbox" id="edit_friday" name="days" value="Friday">
-                                <label for="edit_friday">Friday</label>
-                            </div>
+                            <label for="editDays" class="form-label">Days</label>
+                            <select multiple class="form-control" id="editDays" name="days">
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
                         </div>
                         <div class="mb-3">
-                            <label for="edit_teacher_id" class="form-label">Teacher</label>
-                            <select class="form-control" id="edit_teacher_id" name="teacher_id">
+                            <label for="editTeacherId" class="form-label">Teacher</label>
+                            <select class="form-control" id="editTeacherId" name="teacher_id">
                                 <option value="">None</option>
                                 {% for teacher in teachers %}
                                 <option value="{{ teacher.teacher_id }}">{{ teacher.last_name }}, {{ teacher.first_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editGradeLevel" class="form-label">Grade Level</label>
+                            <input type="text" class="form-control" id="editGradeLevel" name="grade_level">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMaxSize" class="form-label">Max Size</label>
+                            <input type="number" class="form-control" id="editMaxSize" name="max_size">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTerm" class="form-label">Term</label>
+                            <select class="form-control" id="editTerm" name="term" required>
+                                <option value="Semester 1">Semester 1</option>
+                                <option value="Semester 2">Semester 2</option>
+                                <option value="Both">Both</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editScheduleBlock" class="form-label">Schedule Block</label>
+                            <input type="number" class="form-control" id="editScheduleBlock" name="schedule_block">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editClassroomId" class="form-label">Classroom</label>
+                            <select class="form-control" id="editClassroomId" name="classroom_id">
+                                <option value="">None</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom.classroom_id }}">{{ classroom.building_number }} {{ classroom.room_number }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -787,7 +855,7 @@
         </div>
     </div>
 
-    <!-- Assign Students Modal -->
+    <!-- Assign Students Modal (unchanged from previous update) -->
     <div class="modal fade" id="assignStudentsModal" tabindex="-1" aria-labelledby="assignStudentsModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -797,14 +865,38 @@
                 </div>
                 <form method="POST" action="{{ url_for('assign_students_to_class') }}">
                     <div class="modal-body">
-                        <input type="hidden" id="assign_class_id" name="class_id">
+                        <input type="hidden" name="class_id" id="assignClassId">
                         <div class="mb-3">
-                            <label for="student_ids" class="form-label">Students</label>
-                            <select multiple class="form-control" id="student_ids" name="student_ids">
-                                {% for student in students %}
-                                <option value="{{ student.student_id }}">{{ student.last_name }}, {{ student.first_name }}</option>
-                                {% endfor %}
-                            </select>
+                            <label for="studentSelect" class="form-label">Select Students</label>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Select</th>
+                                        <th>Student</th>
+                                        <th>Program Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" name="student_ids" value="{{ student.student_id }}" class="student-checkbox">
+                                        </td>
+                                        <td>{{ student.last_name }}, {{ student.first_name }}</td>
+                                        <td>
+                                            <select name="program_types" class="form-select program-type-select">
+                                                <option value="">Select Program Type</option>
+                                                <option value="morning">Morning</option>
+                                                <option value="afternoon">Afternoon</option>
+                                                <option value="full">Full</option>
+                                                <option value="enrichment">Enrichment</option>
+                                                <option value="academic">Academic</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -827,7 +919,7 @@
                 <form method="POST" action="{{ url_for('add_classroom') }}">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="building_number" class="form-label">Building Number</label>
+                            <label for="building_number" class="form-label">Building Number</muir>
                             <input type="text" class="form-control" id="building_number" name="building_number" required>
                         </div>
                         <div class="mb-3">
@@ -1045,29 +1137,47 @@
             var name = button.getAttribute('data-name');
             var days = button.getAttribute('data-days');
             var teacherId = button.getAttribute('data-teacher-id');
+            var gradeLevel = button.getAttribute('data-grade-level');
+            var maxSize = button.getAttribute('data-max-size');
+            var term = button.getAttribute('data-term');
+            var scheduleBlock = button.getAttribute('data-schedule-block');
+            var classroomId = button.getAttribute('data-classroom-id');
 
             var modal = this;
             modal.querySelector('#edit_class_id').value = classId;
             modal.querySelector('#edit_name').value = name;
+            modal.querySelector('#edit-grade_level').value = gradeLevel;
+            modal.querySelector('#edit-max_size').value = maxSize || '';
+            modal.querySelector('#edit-term').value = term;
+            modal.querySelector('#edit-schedule_block').value = scheduleBlock || '';
 
             // Reset all checkboxes
+            modal.querySelector('#edit_sunday').checked = false;
             modal.querySelector('#edit_monday').checked = false;
             modal.querySelector('#edit_tuesday').checked = false;
             modal.querySelector('#edit_wednesday').checked = false;
             modal.querySelector('#edit_thursday').checked = false;
             modal.querySelector('#edit_friday').checked = false;
+            modal.querySelector('#edit_saturday').checked = false;
 
             // Check the days
             var dayArray = days ? days.split(',') : [];
-            if (dayArray.includes('Monday')) modal.querySelector('#edit_monday').checked = true;
-            if (dayArray.includes('Tuesday')) modal.querySelector('#edit_tuesday').checked = true;
-            if (dayArray.includes('Wednesday')) modal.querySelector('#edit_wednesday').checked = true;
-            if (dayArray.includes('Thursday')) modal.querySelector('#edit_thursday').checked = true;
-            if (dayArray.includes('Friday')) modal.querySelector('#edit_friday').checked = true;
+            if (dayArray.includes('0')) modal.querySelector('#edit_sunday').checked = true;
+            if (dayArray.includes('1')) modal.querySelector('#edit_monday').checked = true;
+            if (dayArray.includes('2')) modal.querySelector('#edit_tuesday').checked = true;
+            if (dayArray.includes('3')) modal.querySelector('#edit_wednesday').checked = true;
+            if (dayArray.includes('4')) modal.querySelector('#edit_thursday').checked = true;
+            if (dayArray.includes('5')) modal.querySelector('#edit_friday').checked = true;
+            if (dayArray.includes('6')) modal.querySelector('#edit_saturday').checked = true;
 
-            var select = modal.querySelector('#edit_teacher_id');
-            for (var i = 0; i < select.options.length; i++) {
-                select.options[i].selected = select.options[i].value === teacherId;
+            var teacherSelect = modal.querySelector('#edit_teacher_id');
+            for (var i = 0; i < teacherSelect.options.length; i++) {
+                teacherSelect.options[i].selected = teacherSelect.options[i].value === teacherId;
+            }
+
+            var classroomSelect = modal.querySelector('#edit-classroom_id');
+            for (var i = 0; i < classroomSelect.options.length; i++) {
+                classroomSelect.options[i].selected = classroomSelect.options[i].value === classroomId;
             }
         });
 
@@ -1118,6 +1228,98 @@
                 select.options[i].selected = select.options[i].value === parentId;
             }
         });
+        document.addEventListener('DOMContentLoaded', function () {
+            // Handle Assign Students Modal
+            var assignStudentsModal = document.getElementById('assignStudentsModal');
+            assignStudentsModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var classId = button.getAttribute('data-class-id');
+                var studentIds = button.getAttribute('data-student-ids').split(',');
+                var programTypes = button.getAttribute('data-program-types').split(',');
+
+                var modal = assignStudentsModal;
+                modal.querySelector('#assignClassId').value = classId;
+
+                // Reset all checkboxes and program types
+                var checkboxes = modal.querySelectorAll('.student-checkbox');
+                var programSelects = modal.querySelectorAll('.program-type-select');
+                checkboxes.forEach(cb => cb.checked = false);
+                programSelects.forEach(sel => sel.value = '');
+
+                // Set checked students and their program types
+                checkboxes.forEach((cb, index) => {
+                    if (studentIds.includes(cb.value)) {
+                        cb.checked = true;
+                        programSelects[index].value = programTypes[index] || '';
+                    }
+                });
+            });
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            // Handle Add Class Modal
+            var addClassModal = document.getElementById('addClassModal');
+            addClassModal.addEventListener('show.bs.modal', function () {
+                // Reset form
+                var form = addClassModal.querySelector('form');
+                form.reset();
+            });
+
+            // Handle Edit Class Modal
+            var editClassModal = document.getElementById('editClassModal');
+            editClassModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var classId = button.getAttribute('data-class-id');
+                var name = button.getAttribute('data-name');
+                var days = button.getAttribute('data-days').split(',');
+                var teacherId = button.getAttribute('data-teacher-id');
+                var gradeLevel = button.getAttribute('data-grade-level');
+                var maxSize = button.getAttribute('data-max-size');
+                var term = button.getAttribute('data-term');
+                var scheduleBlock = button.getAttribute('data-schedule-block');
+                var classroomId = button.getAttribute('data-classroom-id');
+
+                var modal = editClassModal;
+                modal.querySelector('#editClassId').value = classId;
+                modal.querySelector('#editName').value = name;
+                modal.querySelector('#editTeacherId').value = teacherId || '';
+                modal.querySelector('#editGradeLevel').value = gradeLevel || '';
+                modal.querySelector('#editMaxSize').value = maxSize || '';
+                modal.querySelector('#editTerm').value = term || '';
+                modal.querySelector('#editScheduleBlock').value = scheduleBlock || '';
+                modal.querySelector('#editClassroomId').value = classroomId || '';
+
+                var dayOptions = modal.querySelector('#editDays').options;
+                for (var i = 0; i < dayOptions.length; i++) {
+                    dayOptions[i].selected = days.includes(dayOptions[i].value);
+                }
+            });
+
+            // Handle Assign Students Modal
+            var assignStudentsModal = document.getElementById('assignStudentsModal');
+            assignStudentsModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var classId = button.getAttribute('data-class-id');
+                var studentIds = button.getAttribute('data-student-ids').split(',');
+                var programTypes = button.getAttribute('data-program-types').split(',');
+
+                var modal = assignStudentsModal;
+                modal.querySelector('#assignClassId').value = classId;
+
+                // Reset all checkboxes and program types
+                var checkboxes = modal.querySelectorAll('.student-checkbox');
+                var programSelects = modal.querySelectorAll('.program-type-select');
+                checkboxes.forEach(cb => cb.checked = false);
+                programSelects.forEach(sel => sel.value = '');
+
+                // Set checked students and their program types
+                checkboxes.forEach((cb, index) => {
+                    if (studentIds.includes(cb.value)) {
+                        cb.checked = true;
+                        programSelects[index].value = programTypes[index] || '';
+                    }
+                });
+            });
+        });
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93816836ceb132f5',t:'MTc0NTk1NzA1Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
