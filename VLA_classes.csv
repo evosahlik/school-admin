@@ -1,419 +1,153 @@
-﻿Class Name,Grade Level,Term,Schedule,Teacher,Student Count/Max
+Class Name,Grade Level,Term,Schedule,Teacher,Student Count/Max
 1 -2 Spanish [Sp1-2],"1st, 2nd","S1, S2",B4," Pfeil, Teandra",10 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 1-2 History (M) [1-2His],"1st, 2nd","S1, S2",B3," Moffatt, Leasa",10 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 1-2 History (W) [1-2His],"1st, 2nd","S1, S2",- - B3," Moffatt, Leasa",7 / 15
-,,, -,,
-,,,+ schedule segment,,
 1-2 Language Arts & Math (M) [1-2LA/M],"1st, 2nd","S1, S2",B1," Moffatt, Leasa",11 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 1-2 Language Arts & Math (T) [1-2LA/T],"1st, 2nd","S1, S2",- B1," Moffatt, Leasa",11 / 15
-,,, - -,,
-,,,+ schedule segment,,
 1-2 Language Arts & Math (Th) [1-2LA/Th],"1st, 2nd","S1, S2",- - - B1," Moffatt, Leasa",11 / 15
-,,,+ schedule segment,,
 1-2 Language Arts & Math (W) [1-2LA/W],"1st, 2nd","S1, S2",- - B1," Moffatt, Leasa",11 / 15
-,,, -,,
-,,,+ schedule segment,,
 1-2 Science [Sci1-2],"1st, 2nd","S1, S2",- B4," Brand, Tae (Tae)",12 / 12
-,,, - -,,
-,,,+ schedule segment,,
 1-5 Math Tutor [MathTut],1st-5th,"S1, S2",- B4," Walker, Tammy",2 / 15
-,,, - -,,
-,,,+ schedule segment,,
 1-5 Reading Tutor (T) [Read1-5],1st-5th,"S1, S2",- B5," Walker, Tammy",1 / 15
-,,, - -,,
-,,,+ schedule segment,,
 1-5 Reading Tutor (Th) [Read1-5],1st-5th,"S1, S2",- - - B6," Walker, Tammy",* no students
-,,,+ schedule segment,,
 2-12 Chess Club [Chess],2nd-12th,"S1, S2",- B6," Patz, Avery",16
-,,, - -,,
-,,,+ schedule segment,,
 3 Grammar (T) [Gram3],3rd,"S1, S2",- B1," Worthy, Brandy (Brandy)",8 / 10
-,,, - -,,
-,,,+ schedule segment,,
 3 Grammar (Th) [Gram3],3rd,"S1, S2",- - - B1," Worthy, Brandy (Brandy)",8 / 10
-,,,+ schedule segment,,
 3 Math (T) [Math3],3rd,"S1, S2",- B3," Yang, Alice",7 / 10
-,,, - -,,
-,,,+ schedule segment,,
 3 Math (Th) [Math3],3rd,"S1, S2",- - - B3," Yang, Alice",8 / 10
-,,,+ schedule segment,,
 3 Science [Sci3],3rd,"S1, S2",- B2," Brand, Tae (Tae)",9 / 12
-,,, - -,,
-,,,+ schedule segment,,
 3-4 History [His3-4],"3rd, 4th","S1, S2",- - B2," Savage, Olivia",9 / 12
-,,, -,,
-,,,+ schedule segment,,
 3-5 Art (Th) [Art3-5],3rd-5th,"S1, S2",- - - B5," Weber, Christie",9 / 12
-,,,+ schedule segment,,
 3-5 Art (W) [Art3-5],3rd-5th,"S1, S2",- - B5," Weber, Christie",13 / 12
-,,, -,,
-,,,+ schedule segment,,
 3-5 Creative Problem Solving [CPS],3rd-5th,S2,B6," Pfeil, Teandra",17 / 20
-,,, - - -,,
-,,,+ schedule segment,,
 3-5 Creative Writing [CW1],3rd-5th,"S1, S2",B3," Shearer, Kristina (Kristina)",16 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 3-5 Grammar Lab [GramLab],3rd-5th,"S1, S2",- - B1," Worthy, Brandy (Brandy)",11 / 13
-,,, -,,
-,,,+ schedule segment,,
 3-5 Head Chef [HeadChef],3rd-5th,"S1, S2","- B5, B6"," Worthy, Brandy (Brandy)",6 / 10
-,,, - -,,
-,,,+ schedule segment,,
 3-5 Math Lab M1 [MathLab3-5],3rd-5th,"S1, S2",B1," Yang, Alice",8 / 12
-,,, - - -,,
-,,,+ schedule segment,,
 3-5 Math Lab M4,3rd-5th,"S1, S2",B4," Yang, Alice",7 / 8
-,,, - - -,,
-,,,+ schedule segment,,
 3-5 Math Lab W3,3rd-5th,"S1, S2",- - B3," Yang, Alice",6 / 8
-,,, -,,
-,,,+ schedule segment,,
 3-5 Math Lab W4 [MathLab3-5],3rd-5th,"S1, S2",- - B4," Yang, Alice",4 / 12
-,,, -,,
-,,,+ schedule segment,,
 3-5 Mindfulness Matters [Mind1],3rd-5th,"S1, S2",B2," Pfeil, Teandra",17 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 3-5 Sous Chef [Sous Chef],3rd-5th,"S1, S2",- B5," Worthy, Brandy (Brandy)",8 / 10
-,,, - -,,
-,,,+ schedule segment,,
 3-6 Beginning Robotics [BegRob],3rd-6th,"S1, S2",- - B6," Weber, John",6 / 8
-,,, -,,
-,,,+ schedule segment,,
 3-6 Intermediate Robotics [IntRob],3rd-6th,"S1, S2",- - B5," Weber, John",8 / 8
-,,, -,,
-,,,+ schedule segment,,
 3-8 Coding [Coding],3rd-8th,"S1, S2",- - B3," Pfeil, Teandra",18 / 18
-,,, -,,
-,,,+ schedule segment,,
 3-8 Drama [Drama],3rd-8th,"S1, S2",B5," Bond, Heather (Heather)",14 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 4 Science [Sci4],4th,"S1, S2",- B1," Brand, Tae (Tae)",3 / 12
-,,, - -,,
-,,,+ schedule segment,,
 "4-5 Grammar (T, Th) [Gram4-5]","4th, 5th","S1, S2",- B2," Worthy, Brandy (Brandy)",9 / 10
-,,, - B2,,
-,,,+ schedule segment,,
 4-6 Math Lab [MathLab4-6],4th-6th,"S1, S2",- - - B4," Badgley, Lisa",4
-,,,+ schedule segment,,
 4-6 Math Tutor [MathTut4-6],4th-6th,"S1, S2",- - - B4," Walker, Tammy",1 / 10
-,,,+ schedule segment,,
 4/5 Math (T) [M45],"4th, 5th","S1, S2",- B4," Badgley, Lisa",4 / 10
-,,, - -,,
-,,,+ schedule segment,,
 4/5 Math (Th) [Math4/5],"4th, 5th","S1, S2",- - - B3," Badgley, Lisa",4 / 10
-,,,+ schedule segment,,
 5 AL History [AL],5th,"S1, S2",- - B1," Savage, Olivia",4 / 12
-,,, -,,
-,,,+ schedule segment,,
 5 Science [Sci5],5th,"S1, S2",- B3," Brand, Tae (Tae)",6 / 12
-,,, - -,,
-,,,+ schedule segment,,
 5/6 Math (T) [Math5/6],"5th, 6th","S1, S2",- B2," Badgley, Lisa",5 / 15
-,,, - -,,
-,,,+ schedule segment,,
 5/6 Math (Th) [Math5/6],"5th, 6th","S1, S2",- - - B2," Badgley, Lisa",2 / 15
-,,,+ schedule segment,,
 6 IEW [IEW6],6th,"S1, S2",- B3," White, Linda (Linda)",6 / 12
-,,, - -,,
-,,,+ schedule segment,,
 6 Literature [Lit6],6th,"S1, S2",- B5," White, Linda (Linda)",5 / 12
-,,, - -,,
-,,,+ schedule segment,,
 6-8 American Sign Language [ASL1],6th-8th,"S1, S2",B2," Clemons, Rickey",12 / 15
-,,, - - -," Fisk, Drea (Drea)",
-,,,+ schedule segment,,
 6-8 Beginning Spanish [BegSp6-8],6th-8th,"S1, S2",- B1," Garcia, Laura",9 / 15
-,,, - -,,
-,,,+ schedule segment,,
 6-8 Creative Writing [CW2],6th-8th,"S1, S2",B4," Shearer, Kristina (Kristina)",10 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 6-8 Culinary Skills (Th) [Cooking6-8],6th-8th,"S1, S2",- - - B4," Grice, Rachel (Rachel)",11 / 12
-,,,+ schedule segment,,
 6-8 Culinary Skills (W) [Cooking6-8],6th-8th,"S1, S2",- - B4," Jones, Glenda",11 / 12
-,,, -,,
-,,,+ schedule segment,,
 6-8 History (block 3) [His6-8],6th-8th,"S1, S2",- - B3," Stifflemire, Amber (Amber)",10 / 15
-,,, -,,
-,,,+ schedule segment,,
 6-8 History (block 4) [His6-8],6th-8th,"S1, S2",- - B4," Stifflemire, Amber (Amber)",7 / 15
-,,, -,,
-,,,+ schedule segment,,
 6-8 Interactive Engineering (M) [IntEng M],6th-8th,"S1, S2",B3," Pfeil, Teandra",15 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 6-8 Leadership [Lead6-8],6th-8th,"S1, S2",- B3," Fletcher, Pierre",9 / 30
-,,, - -,,
-,,,+ schedule segment,,
 6-8 Science B1 [Sci6-8],6th-8th,"S1, S2",- - - B1," Brand, Tae (Tae)",9 / 12
-,,,+ schedule segment,,
 6-8 Science B2 [Sci6-8],6th-8th,"S1, S2",- - - B2," Brand, Tae (Tae)",7 / 12
-,,,+ schedule segment,,
 6-8 Science of Nutrition [SciNu],6th-8th,"S1, S2",B1," Butler, Ansley",17 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 "6-9 Grammar (M,Th) [Gram6-9]",6th-9th,"S1, S2",B4," Knight, Megan",10 / 12
-,,, - - B4,,
-,,,+ schedule segment,,
 6-12 PE (M) [PE612],6th-12th,"S1, S2",B6," Fletcher, Pierre",19
-,,, - - -,,
-,,,+ schedule segment,,
 6-12 PE (Th) [PE612],6th-12th,"S1, S2",- - - B6," Fletcher, Pierre",18
-,,,+ schedule segment,,
 6-12 PE (W) [PE612],6th-12th,"S1, S2",- - B6," Fletcher, Pierre",12
-,,, -,,
-,,,+ schedule segment,,
 6-12 Reading Tutor (T) [Read6-12],6th-12th,"S1, S2",- B6," Walker, Tammy",2 / 15
-,,, - -,,
-,,,+ schedule segment,,
 6-12 Reading Tutor (Th) [Read6-12],6th-12th,"S1, S2",- - - B5," Walker, Tammy",2 / 15
-,,,+ schedule segment,,
 7-8 IEW [IEW7-8],"7th, 8th","S1, S2",B4," Patz, Avery",4 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 7-8 Literature [Lit7-8],"7th, 8th","S1, S2",- - B2," White, Linda (Linda)",9 / 12
-,,, -,,
-,,,+ schedule segment,,
 8-12 Yearbook [Year],8th-12th,"S1, S2",- - - B1," Stifflemire, Amber (Amber)",8 / 15
-,,,+ schedule segment,,
 9-10 ACT Math [actm910],8th-12th,S2,"B1, B2"," Sheppard, Stephanie",* no students
-,,, - - -,,
-,,,+ schedule segment,,
 9-10 IEW [IEW9-10],"9th, 10th","S1, S2","- - - B5, B6"," Turney, Kristyn",11 / 12
-,,,+ schedule segment,,
 9-10 Literature [910lit],"9th, 10th","S1, S2",- B3," Badgley, Lisa",* no students
-,,, - -,,
-,,,+ schedule segment,,
 9-12 American Sign Language [ASL2],9th-12th,"S1, S2",B3," Clemons, Rickey",7 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 9-12 Art History [ArtHis],9th-12th,"S1, S2",B1," Pfeil, Teandra",5 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 9-12 Career Prep [Career],9th-12th,"S1, S2",- B1," Cazier1, Laura (Laura)",9 / 15
-,,, - -,,
-,,,+ schedule segment,,
 9-12 Culinary Arts (Th) [CulATh],9th-12th,"S1, S2","- - - B5, B6"," Grice, Rachel (Rachel)",9 / 10
-,,,+ schedule segment,,
 9-12 Culinary Arts (W) [CWG],9th-12th,"S1, S2","- - B5, B6"," Jones, Glenda",10 / 10
-,,, -,,
-,,,+ schedule segment,,
 9-12 Leadership [Lead9-12],9th-12th,"S1, S2",- B2," Fletcher, Pierre",12 / 30
-,,, - -,,
-,,,+ schedule segment,,
 9-12 Mindfullness [Mind2],9th-12th,"S1, S2",B5," Pfeil, Teandra",7 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 9-12 Project Based Learning [PBL1],9th-12th,"S1, S2",B2," Knight, Megan",5 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 9-12 Spanish II [Sp2],9th-12th,"S1, S2",- - - B3," Garcia, Laura",3 / 15
-,,,+ schedule segment,,
 9-12 STEM [STEM9-12],9th-12th,"S1, S2","- - B1, B2"," Pfeil, Teandra",11 / 14
-,,, -,,
-,,,+ schedule segment,,
 9/10 Literature [910lit],"9th, 10th","S1, S2",- B5," Vosahlik, Alice (Alice)",3
-,,, - -,,
-,,,+ schedule segment,,
 10-12 Gov/Econ [govecon],10th-12th,"S1, S2","- - B3, B4"," Savage, Olivia",3
-,,, -,,
-,,,+ schedule segment,,
 11-12 ACT Math [actm1112],8th-12th,S2,"B3, B4"," Sheppard, Stephanie",* no students
-,,, - - -,,
-,,,+ schedule segment,,
 ACT Prep [ACT],8th-12th,"S1, S2","B1, B2"," Sheppard, Stephanie",11 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 Algebra 1 (T) [alg1t],7th-10th,"S1, S2",- B2," Cazier1, Laura (Laura)",3 / 15
-,,, - -,,
-,,,+ schedule segment,,
 Algebra 1 (Th) [Alg1 Th],7th-10th,"S1, S2","- - - B1, B2"," Pfeil, Teandra",9 / 15
-,,,+ schedule segment,,
 Algebra 2 [Alg2],8th-12th,"S1, S2",- - - B1," Callaway, Sarah (Sarah)",7 / 6
-,,,+ schedule segment,,
 Algebra 2 Lab [AlgLab],8th-12th,"S1, S2",- - - B2," Callaway, Sarah (Sarah)",7
-,,,+ schedule segment,,
 Aloha Alliance [AA],3rd-12th,"S1, S2",- B4," Cazier1, Laura (Laura)",22
-,,, - -,,
-,,,+ schedule segment,,
 Anatomy & Physiology [AP],9th-12th,"S1, S2",B4," Williams, Jennifer",8 / 12
-,,, - - -,,
-,,,+ schedule segment,,
 Beginning Orchestra [BegOrch],2nd-8th,"S1, S2",B2," Battraw, Kelli",5 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 Beginning Photography [BegfPhot],8th-12th,"S1, S2","- - - B3, B4"," Leist, Stephanie",12 / 15
-,,,+ schedule segment,,
 Biology 1 [Bio1],8th-12th,"S1, S2","B5, B6"," Williams, Jennifer",6 / 10
-,,, - - -,,
-,,,+ schedule segment,,
 Capstone 24-25 [Cap],9th-12th,"S1, S2",* not scheduled," Pfeil, Teandra",20
-,,,," Cazier, Adam",
-,,,," Cooper, Therese",
-,,,," Knight, Megan",
-,,,," Vosahlik, Alice (Alice)",
 Chemistry [Chem ],10th-12th,"S1, S2","- - - B5, B6"," Callaway, Sarah (Sarah)",5 / 10
-,,,+ schedule segment,,
 Chinese Club [Chinese],3rd-12th,"S1, S2",B5," Yang, Alice",3
-,,, - - -,,
-,,,+ schedule segment,,
 Choir [Choir],3rd-12th,"S1, S2",- - B6," Grice, Rachel (Rachel)",9
-,,, -,,
-,,,+ schedule segment,,
 Entrepreneurial Art (9-12) [Art],9th-12th,"S1, S2","- B3, B4"," Nashadka, Natasha (Natasha)",4 / 8
-,,, - -,,
-,,,+ schedule segment,,
 Figurative Art [Figrt],6th-8th,"S1, S2",- - B6," Nashadka, Natasha (Natasha)",9 / 15
-,,, -,,
-,,,+ schedule segment,,
 Geometry [Geo],8th-12th,"S1, S2",- B3," Cazier1, Laura (Laura)",3 / 12
-,,, - -,,
-,,,+ schedule segment,,
 Geometry [Geo],8th-12th,"S1, S2","- - B4, B5"," Pfeil, Teandra",6 / 10
-,,, -,,
-,,,+ schedule segment,,
 Health [Health],9th-12th,S2,- - B5," Williams, Jennifer",* no students
-,,, -,,
-,,,+ schedule segment,,
 Intermediate Orchestra [IntOrch],3rd-12th,"S1, S2",- - - B3," Battraw, Kelli",6 / 20
-,,,+ schedule segment,,
 K-2 Art [K-2Art],K-2nd,"S1, S2",B5," Butler, Ansley",14 / 8
-,,, - - -,,
-,,,+ schedule segment,,
 K-2 Jr. Physics [JrPhys],K-2nd,S2,B6," Fisk, Drea (Drea)",16 / 30
-,,, - - -,,
-,,,+ schedule segment,,
 K-2 Spanish Games (Th) [k-2spTh],K-2nd,"S1, S2",- - - B2," Garcia, Laura",16 / 15
-,,,+ schedule segment,,
 K-2 Spanish Games (W) [SpGames],K-2nd,"S1, S2",- - B4," Garcia, Laura",14 / 15
-,,, -,,
-,,,+ schedule segment,,
 K-5 Nature Science [NatSci],K-5th,"S1, S2",- - - B6," Brand, Tae (Tae)",22 / 20
-,,,+ schedule segment,,
 K-5 PE (M) [PEK5],K-5th,"S1, S2",B5," Fletcher, Pierre",16
-,,, - - -,,
-,,,+ schedule segment,,
 K-5 PE (Th) [PEK5],K-5th,"S1, S2",- - - B5," Fletcher, Pierre",24
-,,,+ schedule segment,,
 K-5 PE (W) [PEK5],K-5th,"S1, S2",- - B5," Fletcher, Pierre",12
-,,, -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (M, bl. 1) [KeysM1]",K,"S1, S2",B1," Counts, Rachel (Rachel)",7 / 20
-,,, - - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (M, bl. 2) [KeysM2]",K,"S1, S2",B2," Counts, Rachel (Rachel)",7 / 20
-,,, - - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (M, bl. 3) [KeysM3]",K,"S1, S2",B3," Counts, Rachel (Rachel)",7 / 20
-,,, - - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (M, bl. 4) [KeysM4]",K,"S1, S2",B4," Counts, Rachel (Rachel)",7 / 20
-,,, - - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (T, bl. 1) [KeysT1]",K,"S1, S2",- B1," Counts, Rachel (Rachel)",8 / 20
-,,, - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (T, bl. 2) [KeysT2]",K,"S1, S2",- B2," Counts, Rachel (Rachel)",8 / 20
-,,, - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (T, bl. 3) [KeysT3]",K,"S1, S2",- B3," Counts, Rachel (Rachel)",8 / 20
-,,, - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (T, bl. 4) [KeysT4]",K,"S1, S2",- B4," Counts, Rachel (Rachel)",8 / 20
-,,, - -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (Th, bl. 1) [KeysTh1]",K,"S1, S2",- - - B1," Counts, Rachel (Rachel)",7 / 20
-,,,+ schedule segment,,
 "Keys to Kindergarten (Th, bl. 2) [KeysTh2]",K,"S1, S2",- - - B2," Counts, Rachel (Rachel)",1 / 20
-,,,+ schedule segment,,
 "Keys to Kindergarten (Th, bl. 3) [KeysTh3]",K,"S1, S2",- - - B3," Counts, Rachel (Rachel)",7 / 20
-,,,+ schedule segment,,
 "Keys to Kindergarten (Th, bl. 4) [KeysTh4]",K,"S1, S2",- - - B4," Counts, Rachel (Rachel)",7 / 20
-,,,+ schedule segment,,
 "Keys to Kindergarten (W, bl. 1) [KeysW1]",K,"S1, S2",- - B1," Counts, Rachel (Rachel)",8 / 20
-,,, -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (W, bl. 2) [KeysW2]",K,"S1, S2",- - B2," Counts, Rachel (Rachel)",8 / 20
-,,, -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (W, bl. 3) [KeysW3]",K,"S1, S2",- - B3," Counts, Rachel (Rachel)",8 / 20
-,,, -,,
-,,,+ schedule segment,,
 "Keys to Kindergarten (W, bl. 4) [KeysW4]",K,"S1, S2",- - B4," Counts, Rachel (Rachel)",3 / 20
-,,, -,,
-,,,+ schedule segment,,
 Math Lab (Alg. I & Alg. II) [MLAlg],6th-12th,"S1, S2","- - - B3, B4"," Callaway, Sarah (Sarah)",12 / 10
-,,,+ schedule segment,,
 Middle Orchestra [MidOrch],2nd-8th,"S1, S2",B6," Battraw, Kelli",2 / 15
-,,, - - -,,
-,,,+ schedule segment,,
 Mock Trial [Mock],8th-12th,"S1, S2",- B6," Savage, Olivia",* no students
-,,, - -,,
-,,,+ schedule segment,,
 Morning Meeting1 [MM1],K-12th,"S1, S2",MM," Shearer, Kristina (Kristina)",91
-,,, - - -,,
-,,,+ schedule segment,,
 Morning Meeting2 [MM2],K-12th,"S1, S2",- MM," Shearer, Kristina (Kristina)",79
-,,, - -,,
-,,,+ schedule segment,,
 Morning Meeting3 [MM3],K-12th,"S1, S2",- - MM," Shearer, Kristina (Kristina)",95
-,,, -,,
-,,,+ schedule segment,,
 Morning Meeting4 [MM4],K-12th,"S1, S2",- - - MM," Shearer, Kristina (Kristina)",97
-,,,+ schedule segment,,
 Morning Meeting 5 [MM5],K-12th,"S1, S2",* not scheduled," Shearer, Kristina (Kristina)",* no students
 Music and Movement [M&M],K-2nd,"S1, S2",- B5," Butler, Ansley",13
-,,, - -,,
-,,,+ schedule segment,,
 Music History [MusHis],6th-12th,"S1, S2",- - B5," Grice, Rachel (Rachel)",10 / 15
-,,, -,,
-,,,+ schedule segment,,
 Persuasive Writing [PW],"11th, 12th","S1, S2","- B5, B6"," Turney, Kristyn",6 / 12
-,,, - -,,
-,,,+ schedule segment,,
 Podcast [Pod],"11th, 12th","S1, S2",- - B4," Vosahlik, Alice (Alice)",* no students
-,,, -,,
-,,,+ schedule segment,,
 Pre-Algebra (T) [Pre],6th-9th,"S1, S2",- B2," Knight, Megan",9 / 12
-,,, - -,,
-,,,+ schedule segment,,
 Pre-Algebra (Th) [Pre],6th-9th,"S1, S2",- - - B2," Knight, Megan",7 / 12
-,,,+ schedule segment,,
 Private Violin [PriVi],K-12th,"S1, S2",- - B1," Weber, Christie",1
-,,, -,,
-,,,+ schedule segment,,
 Private Violin [PriVi],K-12th,"S1, S2",- - B2," Weber, Christie",1
-,,, -,,
-,,,+ schedule segment,,
 Private Violin [PriVi],K-12th,"S1, S2",- - B3," Weber, Christie",* no students
-,,, -,,
-,,,+ schedule segment,,
 Private Violin - W4 [PriVi],K-12th,"S1, S2",- - B4," Weber, Christie",1 / 1
-,,, -,,
-,,,+ schedule segment,,
 Psychology of Happiness [Psych],8th-12th,"S1, S2",- - - B4," Sedlacek, Courtni",9 / 20
-,,,+ schedule segment,,
 Quiz Bowl A [QuizBowlA],5th-8th,"S1, S2","- - - B5, B6"," Nelson, Jennifer",14 / 12
-,,,+ schedule segment,,
 Quiz Bowl B [QuizBowlB],5th-8th,"S1, S2",- - - B6," Nelson, Jennifer",* no students
-,,,+ schedule segment,,
 Spanish I [Sp1],9th-12th,"S1, S2",- - - B4," Garcia, Laura",6 / 15
-,,,+ schedule segment,,
 Storytelling Through Film [Story],3rd-8th,"S1, S2",- B6," Stifflemire, Brett (Brett)",15
-,,, - -,,
-,,,+ schedule segment,,
 Student Council [SC],3rd-12th,"S1, S2",- B4," Shearer, Kristina (Kristina)",15
-,,, - -,,
-,,,+ schedule segment,,
 US History 2 [USHX2],9th-12th,"S1, S2","B5, B6"," Patz, Avery",8 / 14
-,,, - - -,,
-,,,+ schedule segment,,

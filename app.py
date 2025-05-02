@@ -10,6 +10,7 @@ import pandas as pd
 import io
 import uuid
 import re
+from typing import List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -123,6 +124,84 @@ def format_days(days_array):
     day_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     sorted_days = sorted([int(day) for day in days_array if day is not None])
     return ', '.join(day_names[day] for day in sorted_days if 0 <= day < 7)
+
+def clean_string(s: str) -> str:
+    """Replace non-breaking spaces (\xa0) with regular spaces and normalize hyphens."""
+    if not s:
+        return s
+    # Replace non-breaking spaces with regular spaces
+    s = s.replace('\xa0', ' ')
+    # Replace multiple spaces with single space
+    s = re.sub(r'\s+', ' ', s)
+    # Ensure dashes are standard hyphens
+    s = s.replace('–', '-').replace('—', '-')
+    return s.strip()
+
+
+def normalize_grade_level(grade: str) -> List[str]:
+    """Normalize grade level to a TEXT[] (e.g., '1st, 2nd' -> ['1', '2'], 'K-12' -> ['K', '1', ..., '12'])."""
+    logging.info(f"Processing grade level: {grade}")
+    grade = clean_string(grade).replace('"', '')
+    if not grade:
+        logging.warning("Empty grade level provided")
+        return []
+    
+    # Valid grades per constraint
+    valid_grades = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+    
+    # Helper to convert grade to string ('K' or '1', '2', etc.)
+    def grade_to_str(g: str) -> Optional[str]:
+        g = g.strip().lower()
+        if g == 'k':
+            return 'K'
+        match = re.search(r'\d+', g)
+        if match:
+            num = match.group()
+            if num in valid_grades:
+                return num
+        return None
+    
+    # Handle range (e.g., 'K-12', '1st-2nd')
+    if '-' in grade:
+        try:
+            start, end = grade.split('-')
+            start_num = grade_to_str(start)
+            end_num = grade_to_str(end)
+            if start_num is None or end_num is None:
+                logging.warning(f"Invalid grade range format: {grade}")
+                return []
+            start_idx = valid_grades.index(start_num)
+            end_idx = valid_grades.index(end_num)
+            if start_idx > end_idx:
+                logging.warning(f"Invalid grade range: {start_num} > {end_num}")
+                return [start_num] if start_num in valid_grades else []
+            # Generate range of grades
+            grades = valid_grades[start_idx:end_idx + 1]
+            return grades
+        except Exception as e:
+            logging.error(f"Error normalizing grade level {grade}: {str(e)}")
+            return []
+    
+    # Handle comma-separated grades (e.g., '1st, 2nd')
+    if ',' in grade:
+        try:
+            grades = [grade_to_str(g) for g in grade.split(',')]
+            grades = [g for g in grades if g in valid_grades]
+            if not grades:
+                logging.warning(f"No valid grades in comma-separated list: {grade}")
+                return []
+            return sorted(set(grades))  # Remove duplicates and sort
+        except Exception as e:
+            logging.error(f"Error normalizing comma-separated grade level {grade}: {str(e)}")
+            return []
+    
+    # Handle single grade (e.g., 'K', '1st')
+    grade_str = grade_to_str(grade)
+    if grade_str in valid_grades:
+        return [grade_str]
+    logging.warning(f"Invalid grade format: {grade}")
+    return []
+
 
 # Routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -536,6 +615,7 @@ def edit_class():
     if current_user.role != 'admin':
         flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('classes'))
+    
     try:
         valid_terms = ['Semester 1', 'Semester 2', 'Both']
         term = request.form.get('term')
@@ -544,23 +624,49 @@ def edit_class():
             return redirect(url_for('classes'))
         
         class_id = request.form.get('class_id')
+        if not class_id:
+            flash('Class ID is required', 'danger')
+            return redirect(url_for('classes'))
+        
+        # Normalize days (INTEGER[])
         days = request.form.getlist('days')
+        days = [int(day) for day in days if day.isdigit()] if days else None
+        
+        # Normalize schedule_block (INTEGER[])
+        schedule_block = request.form.get('schedule_block')
+        logger.info(f"Raw schedule_block input: {schedule_block}")
+        schedule_block = [int(schedule_block)] if schedule_block and schedule_block.isdigit() else None
+        
+        # Build update data, excluding None values for schedule_block to preserve existing
         data = {
-            'name': request.form.get('name'),
-            'days': days if days else None,
+            'name': request.form.get('name') or None,
+            'days': days,
             'teacher_id': request.form.get('teacher_id') or None,
-            'grade_level': request.form.get('grade_level') or None,
-            'max_size': int(request.form.get('max_size')) if request.form.get('max_size') else None,
+            'grade_level': normalize_grade_level(request.form.get('grade_level') or ''),
+            'max_size': int(request.form.get('max_size')) if request.form.get('max_size') and request.form.get('max_size').isdigit() else None,
             'term': term,
-            'schedule_block': int(request.form.get('schedule_block')) if request.form.get('schedule_block') else None,
             'classroom_id': request.form.get('classroom_id') or None
         }
-        supabase.table('classes').update(data).eq('class_id', class_id).execute()
-        flash('Class updated successfully', 'success')
+        # Only include schedule_block if a valid value is provided
+        if schedule_block:
+            data['schedule_block'] = schedule_block
+        
+        logger.info(f"Updating class {class_id} with data: {data}")
+        
+        # Perform the update
+        response = supabase.table('classes').update(data).eq('class_id', class_id).execute()
+        
+        if response.data:
+            flash('Class updated successfully', 'success')
+        else:
+            flash('Class not found or no changes made', 'warning')
+            
     except Exception as e:
-        logger.error(f"Error editing class: {str(e)}")
+        logger.error(f"Error editing class {class_id}: {str(e)}")
         flash(f"Error editing class: {str(e)}", 'danger')
+    
     return redirect(url_for('classes'))
+
 
 @app.route('/delete_class/<class_id>', methods=['POST'])
 @login_required
@@ -857,6 +963,18 @@ def import_from_csv():
         logger.error(f"Error importing CSV: {str(e)}")
         flash(f"Error importing CSV: {str(e)}", 'danger')
     return redirect(url_for('students'))
+
+@app.route('/api/class/<class_id>')
+@login_required
+def get_class(class_id):
+    try:
+        response = supabase.table('classes').select('*').eq('class_id', class_id).execute()
+        if response.data:
+            return response.data[0], 200
+        return {"error": "Class not found"}, 404
+    except Exception as e:
+        logger.error(f"Error fetching class {class_id}: {str(e)}")
+        return {"error": str(e)}, 500
 
 if __name__ == '__main__':
     app.run(debug=True)

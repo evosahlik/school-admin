@@ -788,72 +788,49 @@
                     <h5 class="modal-title" id="editClassModalLabel">Edit Class</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ url_for('edit_class') }}">
-                    <div class="modal-body">
-                        <input type="hidden" name="class_id" id="editClassId">
+                <div class="modal-body">
+                    <form action="{{ url_for('edit_class') }}" method="POST">
+                        <input type="hidden" name="class_id" id="class_id">
                         <div class="mb-3">
-                            <label for="editName" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="editName" name="name" required>
+                            <label for="name" class="form-label">Class Name</label>
+                            <input type="text" class="form-control" id="name" name="name">
                         </div>
                         <div class="mb-3">
-                            <label for="editDays" class="form-label">Days</label>
-                            <select multiple class="form-control" id="editDays" name="days">
-                                <option value="0">Sunday</option>
-                                <option value="1">Monday</option>
-                                <option value="2">Tuesday</option>
-                                <option value="3">Wednesday</option>
-                                <option value="4">Thursday</option>
-                                <option value="5">Friday</option>
-                                <option value="6">Saturday</option>
-                            </select>
+                            <label for="grade_level" class="form-label">Grade Level</label>
+                            <input type="text" class="form-control" id="grade_level" name="grade_level" placeholder="e.g., 1st, 2nd">
                         </div>
                         <div class="mb-3">
-                            <label for="editTeacherId" class="form-label">Teacher</label>
-                            <select class="form-control" id="editTeacherId" name="teacher_id">
-                                <option value="">None</option>
-                                {% for teacher in teachers %}
-                                <option value="{{ teacher.teacher_id }}">{{ teacher.last_name }}, {{ teacher.first_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editGradeLevel" class="form-label">Grade Level</label>
-                            <input type="text" class="form-control" id="editGradeLevel" name="grade_level">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editMaxSize" class="form-label">Max Size</label>
-                            <input type="number" class="form-control" id="editMaxSize" name="max_size">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editTerm" class="form-label">Term</label>
-                            <select class="form-control" id="editTerm" name="term" required>
+                            <label for="term" class="form-label">Term</label>
+                            <select class="form-select" id="term" name="term">
+                                <option value="Both">Both</option>
                                 <option value="Semester 1">Semester 1</option>
                                 <option value="Semester 2">Semester 2</option>
-                                <option value="Both">Both</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="editScheduleBlock" class="form-label">Schedule Block</label>
-                            <input type="number" class="form-control" id="editScheduleBlock" name="schedule_block">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editClassroomId" class="form-label">Classroom</label>
-                            <select class="form-control" id="editClassroomId" name="classroom_id">
-                                <option value="">None</option>
-                                {% for classroom in classrooms %}
-                                <option value="{{ classroom.classroom_id }}">{{ classroom.building_number }} {{ classroom.room_number }}</option>
-                                {% endfor %}
+                            <label for="schedule_block" class="form-label">Schedule Block</label>
+                            <select class="form-select" id="schedule_block" name="schedule_block">
+                                <option value="">Select Block</option>
+                                <option value="1">Block 1</option>
+                                <option value="2">Block 2</option>
+                                <option value="3">Block 3</option>
+                                <option value="4">Block 4</option>
+                                <option value="5">Block 5</option>
+                                <option value="6">Block 6</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <div class="mb-3">
+                            <label for="max_size" class="form-label">Max Size</label>
+                            <input type="number" class="form-control" id="max_size" name="max_size">
+                        </div>
+                        <!-- Add other fields as needed (e.g., days, teacher_id, classroom_id) -->
                         <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
+    
 
     <!-- Assign Students Modal (unchanged from previous update) -->
     <div class="modal fade" id="assignStudentsModal" tabindex="-1" aria-labelledby="assignStudentsModalLabel" aria-hidden="true">
@@ -1255,6 +1232,27 @@
                 });
             });
         });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('editClassModal');
+            modal.addEventListener('show.bs.modal', async (event) => {
+                const button = event.relatedTarget; // Button that triggered the modal
+                const classId = button.dataset.classId; // Assumes data-class-id attribute
+                
+                // Fetch class data
+                const response = await fetch(`/api/class/${classId}`);
+                const classData = await response.json();
+                
+                // Populate form
+                document.getElementById('class_id').value = classData.class_id;
+                document.getElementById('name').value = classData.name || '';
+                document.getElementById('grade_level').value = classData.grade_level ? classData.grade_level.join(', ') : '';
+                document.getElementById('term').value = classData.term || 'Both';
+                document.getElementById('schedule_block').value = classData.schedule_block ? classData.schedule_block[0] : '';
+                document.getElementById('max_size').value = classData.max_size || '';
+            });
+        });
+
         document.addEventListener('DOMContentLoaded', function () {
             // Handle Add Class Modal
             var addClassModal = document.getElementById('addClassModal');
