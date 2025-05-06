@@ -12,6 +12,7 @@
         .table th, .table td { vertical-align: middle; }
         .modal-dialog { max-width: 600px; }
         select[multiple] { height: 150px; }
+        .search-container { display: inline-flex; align-items: center; gap: 10px; }
     </style>
 </head>
 <body>
@@ -80,15 +81,18 @@
         {% if active_tab == 'students' %}
         <h2>Students</h2>
         {% if user_role in ['admin', 'teacher'] %}
-        <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
-        {% if user_role == 'admin' %}
-        <form method="POST" enctype="multipart/form-data" action="{{ url_for('import_from_csv') }}" class="d-inline">
-            <input type="file" name="file" accept=".csv" class="d-none" id="csvFileInput" onchange="this.form.submit()">
-            <button type="button" class="btn btn-secondary mb-3" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
-        </form>
+        <div class="search-container mb-3">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">Add Student</button>
+            {% if user_role == 'admin' %}
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('import_from_csv') }}" class="d-inline">
+                <input type="file" name="file" accept=".csv" class="d-none" id="csvFileInput" onchange="this.form.submit()">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
+            </form>
+            {% endif %}
+            <input type="text" class="form-control" id="studentSearch" placeholder="Search by last name..." style="width: 300px;">
+        </div>
         {% endif %}
-        {% endif %}
-        <table class="table table-striped">
+        <table class="table table-striped" id="studentsTable">
             <thead>
                 <tr>
                     <th>First Name</th>
@@ -278,9 +282,12 @@
         {% if active_tab == 'classes' %}
         <h2>Classes</h2>
         {% if user_role == 'admin' %}
-        <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addClassModal">Add Class</button>
+        <div class="search-container mb-3">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClassModal">Add Class</button>
+            <input type="text" class="form-control" id="classSearch" placeholder="Search by class name..." style="width: 300px;">
+        </div>
         {% endif %}
-        <table class="table table-striped">
+        <table class="table table-striped" id="classesTable">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -303,10 +310,10 @@
                     <td>{{ cls.name }}</td>
                     <td>{{ cls.days or '' }}</td>
                     <td>{{ cls.teachers.first_name + ' ' + cls.teachers.last_name if cls.teachers else 'None' }}</td>
-                    <td>{{ cls.grade_level or '' }}</td>
+                    <td>{{ cls.grade_level | join(', ') if cls.grade_level else '' }}</td>
                     <td>{{ cls.max_size or 'N/A' }}</td>
                     <td>{{ cls.term or '' }}</td>
-                    <td>{{ cls.schedule_block or 'N/A' }}</td>
+                    <td>{{ cls.schedule_block[0] if cls.schedule_block else 'N/A' }}</td>
                     <td>{{ cls.classrooms.building_number + ' ' + cls.classrooms.room_number if cls.classrooms else 'None' }}</td>
                     <td>
                         {% for student in cls.students %}
@@ -323,10 +330,10 @@
                                 data-name="{{ cls.name | e }}"
                                 data-days="{{ cls.days_array | join(',') }}"
                                 data-teacher-id="{{ cls.teacher_id or '' }}"
-                                data-grade-level="{{ cls.grade_level or '' }}"
+                                data-grade-level="{{ cls.grade_level | join(', ') if cls.grade_level else '' }}"
                                 data-max-size="{{ cls.max_size or '' }}"
                                 data-term="{{ cls.term or '' }}"
-                                data-schedule-block="{{ cls.schedule_block or '' }}"
+                                data-schedule-block="{{ cls.schedule_block[0] if cls.schedule_block else '' }}"
                                 data-classroom-id="{{ cls.classroom_id or '' }}">Edit</button>
                         <form method="POST" action="{{ url_for('delete_class', class_id=cls.class_id) }}" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this class?')">Delete</button>
@@ -788,29 +795,54 @@
                     <h5 class="modal-title" id="editClassModalLabel">Edit Class</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <form action="{{ url_for('edit_class') }}" method="POST">
-                        <input type="hidden" name="class_id" id="class_id">
+                <form method="POST" action="{{ url_for('edit_class') }}">
+                    <div class="modal-body">
+                        <input type="hidden" id="class_id" name="class_id">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Class Name</label>
-                            <input type="text" class="form-control" id="name" name="name">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="days" class="form-label">Days</label>
+                            <select multiple class="form-control" id="days" name="days">
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="teacher_id" class="form-label">Teacher</label>
+                            <select class="form-control" id="teacher_id" name="teacher_id">
+                                <option value="">None</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.teacher_id }}">{{ teacher.last_name }}, {{ teacher.first_name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label for="grade_level" class="form-label">Grade Level</label>
-                            <input type="text" class="form-control" id="grade_level" name="grade_level" placeholder="e.g., 1st, 2nd">
+                            <input type="text" class="form-control" id="grade_level" name="grade_level" placeholder="e.g., K, 1, 2 or K-12">
+                        </div>
+                        <div class="mb-3">
+                            <label for="max_size" class="form-label">Max Size</label>
+                            <input type="number" class="form-control" id="max_size" name="max_size">
                         </div>
                         <div class="mb-3">
                             <label for="term" class="form-label">Term</label>
-                            <select class="form-select" id="term" name="term">
-                                <option value="Both">Both</option>
+                            <select class="form-control" id="term" name="term" required>
                                 <option value="Semester 1">Semester 1</option>
                                 <option value="Semester 2">Semester 2</option>
+                                <option value="Both">Both</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label for="schedule_block" class="form-label">Schedule Block</label>
-                            <select class="form-select" id="schedule_block" name="schedule_block">
-                                <option value="">Select Block</option>
+                            <select class="form-control" id="schedule_block" name="schedule_block">
+                                <option value="">None</option>
                                 <option value="1">Block 1</option>
                                 <option value="2">Block 2</option>
                                 <option value="3">Block 3</option>
@@ -820,19 +852,25 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="max_size" class="form-label">Max Size</label>
-                            <input type="number" class="form-control" id="max_size" name="max_size">
+                            <label for="classroom_id" class="form-label">Classroom</label>
+                            <select class="form-control" id="classroom_id" name="classroom_id">
+                                <option value="">None</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom.classroom_id }}">{{ classroom.building_number }} {{ classroom.room_number }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <!-- Add other fields as needed (e.g., days, teacher_id, classroom_id) -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    
 
-    <!-- Assign Students Modal (unchanged from previous update) -->
+    <!-- Assign Students Modal -->
     <div class="modal fade" id="assignStudentsModal" tabindex="-1" aria-labelledby="assignStudentsModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -896,7 +934,7 @@
                 <form method="POST" action="{{ url_for('add_classroom') }}">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="building_number" class="form-label">Building Number</muir>
+                            <label for="building_number" class="form-label">Building Number</label>
                             <input type="text" class="form-control" id="building_number" name="building_number" required>
                         </div>
                         <div class="mb-3">
@@ -1037,6 +1075,30 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Student Search Filtering
+        document.getElementById('studentSearch')?.addEventListener('input', function () {
+            var searchValue = this.value.trim().toLowerCase();
+            var table = document.getElementById('studentsTable');
+            var rows = table.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                var lastName = row.cells[1].textContent.trim().toLowerCase();
+                row.style.display = lastName.startsWith(searchValue) || searchValue === '' ? '' : 'none';
+            });
+        });
+
+        // Class Search Filtering
+        document.getElementById('classSearch')?.addEventListener('input', function () {
+            var searchValue = this.value.trim().toLowerCase();
+            var table = document.getElementById('classesTable');
+            var rows = table.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                var className = row.cells[0].textContent.trim().toLowerCase();
+                row.style.display = className.startsWith(searchValue) || searchValue === '' ? '' : 'none';
+            });
+        });
+
         // Edit Student Modal
         document.getElementById('editStudentModal')?.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
@@ -1108,216 +1170,135 @@
         });
 
         // Edit Class Modal
-        document.getElementById('editClassModal')?.addEventListener('show.bs.modal', function (event) {
+        document.getElementById('editClassModal')?.addEventListener('show.bs.modal', async function (event) {
             var button = event.relatedTarget;
             var classId = button.getAttribute('data-class-id');
-            var name = button.getAttribute('data-name');
-            var days = button.getAttribute('data-days');
-            var teacherId = button.getAttribute('data-teacher-id');
-            var gradeLevel = button.getAttribute('data-grade-level');
-            var maxSize = button.getAttribute('data-max-size');
-            var term = button.getAttribute('data-term');
-            var scheduleBlock = button.getAttribute('data-schedule-block');
-            var classroomId = button.getAttribute('data-classroom-id');
-
             var modal = this;
-            modal.querySelector('#edit_class_id').value = classId;
-            modal.querySelector('#edit_name').value = name;
-            modal.querySelector('#edit-grade_level').value = gradeLevel;
-            modal.querySelector('#edit-max_size').value = maxSize || '';
-            modal.querySelector('#edit-term').value = term;
-            modal.querySelector('#edit-schedule_block').value = scheduleBlock || '';
 
-            // Reset all checkboxes
-            modal.querySelector('#edit_sunday').checked = false;
-            modal.querySelector('#edit_monday').checked = false;
-            modal.querySelector('#edit_tuesday').checked = false;
-            modal.querySelector('#edit_wednesday').checked = false;
-            modal.querySelector('#edit_thursday').checked = false;
-            modal.querySelector('#edit_friday').checked = false;
-            modal.querySelector('#edit_saturday').checked = false;
+            // Fallback data from button attributes
+            var fallbackData = {
+                class_id: classId,
+                name: button.getAttribute('data-name') || '',
+                days: button.getAttribute('data-days') ? button.getAttribute('data-days').split(',').map(Number) : [],
+                teacher_id: button.getAttribute('data-teacher-id') || '',
+                grade_level: button.getAttribute('data-grade-level') || '',
+                max_size: button.getAttribute('data-max-size') || '',
+                term: button.getAttribute('data-term') || 'Both',
+                schedule_block: button.getAttribute('data-schedule-block') || '',
+                classroom_id: button.getAttribute('data-classroom-id') || ''
+            };
 
-            // Check the days
-            var dayArray = days ? days.split(',') : [];
-            if (dayArray.includes('0')) modal.querySelector('#edit_sunday').checked = true;
-            if (dayArray.includes('1')) modal.querySelector('#edit_monday').checked = true;
-            if (dayArray.includes('2')) modal.querySelector('#edit_tuesday').checked = true;
-            if (dayArray.includes('3')) modal.querySelector('#edit_wednesday').checked = true;
-            if (dayArray.includes('4')) modal.querySelector('#edit_thursday').checked = true;
-            if (dayArray.includes('5')) modal.querySelector('#edit_friday').checked = true;
-            if (dayArray.includes('6')) modal.querySelector('#edit_saturday').checked = true;
-
-            var teacherSelect = modal.querySelector('#edit_teacher_id');
-            for (var i = 0; i < teacherSelect.options.length; i++) {
-                teacherSelect.options[i].selected = teacherSelect.options[i].value === teacherId;
-            }
-
-            var classroomSelect = modal.querySelector('#edit-classroom_id');
-            for (var i = 0; i < classroomSelect.options.length; i++) {
-                classroomSelect.options[i].selected = classroomSelect.options[i].value === classroomId;
-            }
-        });
-
-        // Assign Students Modal
-        document.getElementById('assignStudentsModal')?.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var classId = button.getAttribute('data-class-id');
-            var studentIds = button.getAttribute('data-student-ids');
-
-            var modal = this;
-            modal.querySelector('#assign_class_id').value = classId;
-
-            var select = modal.querySelector('#student_ids');
-            var studentIdArray = studentIds ? studentIds.split(',') : [];
-            for (var i = 0; i < select.options.length; i++) {
-                select.options[i].selected = studentIdArray.includes(select.options[i].value);
-            }
-        });
-
-        // Edit Classroom Modal
-        document.getElementById('editClassroomModal')?.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var classroomId = button.getAttribute('data-classroom-id');
-            var buildingNumber = button.getAttribute('data-building-number');
-            var roomNumber = button.getAttribute('data-room-number');
-
-            var modal = this;
-            modal.querySelector('#edit_classroom_id').value = classroomId;
-            modal.querySelector('#edit_building_number').value = buildingNumber;
-            modal.querySelector('#edit_room_number').value = roomNumber;
-        });
-
-        // Edit User Modal
-        document.getElementById('editUserModal')?.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var userId = button.getAttribute('data-user-id');
-            var email = button.getAttribute('data-email');
-            var role = button.getAttribute('data-role');
-            var parentId = button.getAttribute('data-parent-id');
-
-            var modal = this;
-            modal.querySelector('#edit_user_id').value = userId;
-            modal.querySelector('#edit_email').value = email;
-            modal.querySelector('#edit_role').value = role;
-
-            var select = modal.querySelector('#edit_parent_id');
-            for (var i = 0; i < select.options.length; i++) {
-                select.options[i].selected = select.options[i].value === parentId;
-            }
-        });
-        document.addEventListener('DOMContentLoaded', function () {
-            // Handle Assign Students Modal
-            var assignStudentsModal = document.getElementById('assignStudentsModal');
-            assignStudentsModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var classId = button.getAttribute('data-class-id');
-                var studentIds = button.getAttribute('data-student-ids').split(',');
-                var programTypes = button.getAttribute('data-program-types').split(',');
-
-                var modal = assignStudentsModal;
-                modal.querySelector('#assignClassId').value = classId;
-
-                // Reset all checkboxes and program types
-                var checkboxes = modal.querySelectorAll('.student-checkbox');
-                var programSelects = modal.querySelectorAll('.program-type-select');
-                checkboxes.forEach(cb => cb.checked = false);
-                programSelects.forEach(sel => sel.value = '');
-
-                // Set checked students and their program types
-                checkboxes.forEach((cb, index) => {
-                    if (studentIds.includes(cb.value)) {
-                        cb.checked = true;
-                        programSelects[index].value = programTypes[index] || '';
-                    }
-                });
-            });
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const modal = document.getElementById('editClassModal');
-            modal.addEventListener('show.bs.modal', async (event) => {
-                const button = event.relatedTarget; // Button that triggered the modal
-                const classId = button.dataset.classId; // Assumes data-class-id attribute
-                
-                // Fetch class data
+            try {
                 const response = await fetch(`/api/class/${classId}`);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
                 const classData = await response.json();
-                
-                // Populate form
-                document.getElementById('class_id').value = classData.class_id;
-                document.getElementById('name').value = classData.name || '';
-                document.getElementById('grade_level').value = classData.grade_level ? classData.grade_level.join(', ') : '';
-                document.getElementById('term').value = classData.term || 'Both';
-                document.getElementById('schedule_block').value = classData.schedule_block ? classData.schedule_block[0] : '';
-                document.getElementById('max_size').value = classData.max_size || '';
-            });
-        });
 
-        document.addEventListener('DOMContentLoaded', function () {
-            // Handle Add Class Modal
-            var addClassModal = document.getElementById('addClassModal');
-            addClassModal.addEventListener('show.bs.modal', function () {
-                // Reset form
-                var form = addClassModal.querySelector('form');
-                form.reset();
-            });
+                // Populate form with API data
+                modal.querySelector('#class_id').value = classData.class_id || fallbackData.class_id;
+                modal.querySelector('#name').value = classData.name || fallbackData.name;
+                modal.querySelector('#grade_level').value = classData.grade_level ? classData.grade_level.join(', ') : fallbackData.grade_level;
+                modal.querySelector('#max_size').value = classData.max_size || fallbackData.max_size;
+                modal.querySelector('#term').value = classData.term || fallbackData.term;
+                modal.querySelector('#schedule_block').value = classData.schedule_block && classData.schedule_block.length ? classData.schedule_block[0] : fallbackData.schedule_block;
 
-            // Handle Edit Class Modal
-            var editClassModal = document.getElementById('editClassModal');
-            editClassModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var classId = button.getAttribute('data-class-id');
-                var name = button.getAttribute('data-name');
-                var days = button.getAttribute('data-days').split(',');
-                var teacherId = button.getAttribute('data-teacher-id');
-                var gradeLevel = button.getAttribute('data-grade-level');
-                var maxSize = button.getAttribute('data-max-size');
-                var term = button.getAttribute('data-term');
-                var scheduleBlock = button.getAttribute('data-schedule-block');
-                var classroomId = button.getAttribute('data-classroom-id');
-
-                var modal = editClassModal;
-                modal.querySelector('#editClassId').value = classId;
-                modal.querySelector('#editName').value = name;
-                modal.querySelector('#editTeacherId').value = teacherId || '';
-                modal.querySelector('#editGradeLevel').value = gradeLevel || '';
-                modal.querySelector('#editMaxSize').value = maxSize || '';
-                modal.querySelector('#editTerm').value = term || '';
-                modal.querySelector('#editScheduleBlock').value = scheduleBlock || '';
-                modal.querySelector('#editClassroomId').value = classroomId || '';
-
-                var dayOptions = modal.querySelector('#editDays').options;
-                for (var i = 0; i < dayOptions.length; i++) {
-                    dayOptions[i].selected = days.includes(dayOptions[i].value);
+                // Populate days (multi-select)
+                var daysSelect = modal.querySelector('#days');
+                for (var i = 0; i < daysSelect.options.length; i++) {
+                    daysSelect.options[i].selected = classData.days ? classData.days.includes(parseInt(daysSelect.options[i].value)) : fallbackData.days.includes(parseInt(daysSelect.options[i].value));
                 }
-            });
 
-            // Handle Assign Students Modal
-            var assignStudentsModal = document.getElementById('assignStudentsModal');
-            assignStudentsModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var classId = button.getAttribute('data-class-id');
-                var studentIds = button.getAttribute('data-student-ids').split(',');
-                var programTypes = button.getAttribute('data-program-types').split(',');
+                // Populate teacher_id
+                var teacherSelect = modal.querySelector('#teacher_id');
+                for (var i = 0; i < teacherSelect.options.length; i++) {
+                    teacherSelect.options[i].selected = teacherSelect.options[i].value === (classData.teacher_id || fallbackData.teacher_id);
+                }
 
-                var modal = assignStudentsModal;
-                modal.querySelector('#assignClassId').value = classId;
+                // Populate classroom_id
+                var classroomSelect = modal.querySelector('#classroom_id');
+                for (var i = 0; i < classroomSelect.options.length; i++) {
+                    classroomSelect.options[i].selected = classroomSelect.options[i].value === (classData.classroom_id || fallbackData.classroom_id);
+                }
+            } catch (error) {
+                console.error('Error fetching class data:', error);
+                alert(`Failed to load class data: ${error.message}. Using fallback data.`);
 
-                // Reset all checkboxes and program types
-                var checkboxes = modal.querySelectorAll('.student-checkbox');
-                var programSelects = modal.querySelectorAll('.program-type-select');
-                checkboxes.forEach(cb => cb.checked = false);
-                programSelects.forEach(sel => sel.value = '');
+                // Populate with fallback data
+                modal.querySelector('#class_id').value = fallbackData.class_id;
+                modal.querySelector('#name').value = fallbackData.name;
+                modal.querySelector('#grade_level').value = fallbackData.grade_level;
+                modal.querySelector('#max_size').value = fallbackData.max_size;
+                modal.querySelector('#term').value = fallbackData.term;
+                modal.querySelector('#schedule_block').value = fallbackData.schedule_block;
 
-                // Set checked students and their program types
-                checkboxes.forEach((cb, index) => {
-                    if (studentIds.includes(cb.value)) {
-                        cb.checked = true;
-                        programSelects[index].value = programTypes[index] || '';
-                    }
-                });
-            });
+                var daysSelect = modal.querySelector('#days');
+                for (var i = 0; i < daysSelect.options.length; i++) {
+                    daysSelect.options[i].selected = fallbackData.days.includes(parseInt(daysSelect.options[i].value));
+                }
+
+                var teacherSelect = modal.querySelector('#teacher_id');
+                for (var i = 0; i < teacherSelect.options.length; i++) {
+                    teacherSelect.options[i].selected = teacherSelect.options[i].value === fallbackData.teacher_id;
+                }
+
+            var classroomSelect = modal.querySelector('#classroom_id');
+            for (var i = 0; i < classroomSelect.options.length; i++) {
+                classroomSelect.options[i].selected = classroomSelect.options[i].value === fallbackData.classroom_id;
+            }
+        }
+    });
+
+    // Assign Students Modal
+    document.getElementById('assignStudentsModal')?.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var classId = button.getAttribute('data-class-id');
+        var studentIds = button.getAttribute('data-student-ids');
+        var programTypes = button.getAttribute('data-program-types');
+
+        var modal = this;
+        modal.querySelector('#assignClassId').value = classId;
+
+        var studentIdArray = studentIds ? studentIds.split(',') : [];
+        var programTypeArray = programTypes ? programTypes.split(',') : [];
+
+        var checkboxes = modal.querySelectorAll('.student-checkbox');
+        var programSelects = modal.querySelectorAll('.program-type-select');
+        checkboxes.forEach((cb, index) => {
+            cb.checked = studentIdArray.includes(cb.value);
+            programSelects[index].value = studentIdArray.includes(cb.value) ? (programTypeArray[index] || '') : '';
         });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93816836ceb132f5',t:'MTc0NTk1NzA1Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    });
+
+    // Edit Classroom Modal
+    document.getElementById('editClassroomModal')?.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var classroomId = button.getAttribute('data-classroom-id');
+        var buildingNumber = button.getAttribute('data-building-number');
+        var roomNumber = button.getAttribute('data-room-number');
+
+        var modal = this;
+        modal.querySelector('#edit_classroom_id').value = classroomId;
+        modal.querySelector('#edit_building_number').value = buildingNumber;
+        modal.querySelector('#edit_room_number').value = roomNumber;
+    });
+
+    // Edit User Modal
+    document.getElementById('editUserModal')?.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var userId = button.getAttribute('data-user-id');
+        var email = button.getAttribute('data-email');
+        var role = button.getAttribute('data-role');
+        var parentId = button.getAttribute('data-parent-id');
+
+        var modal = this;
+        modal.querySelector('#edit_user_id').value = userId;
+        modal.querySelector('#edit_email').value = email;
+        modal.querySelector('#edit_role').value = role;
+
+        var select = modal.querySelector('#edit_parent_id');
+        for (var i = 0; i < select.options.length; i++) {
+            select.options[i].selected = select.options[i].value === parentId;
+        }
+    });
+</script>
+</body>
 </html>
