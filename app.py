@@ -100,17 +100,50 @@ def normalize_grade(grade):
 
 def calculate_student_tuition(grade, assignments):
     pricing = {
-        'K': {'morning': 2000, 'afternoon': 3000},
-        '1-2': {'full': 4000, 'enrichment': 1500, 'academic': 2000},
-        '3-8': {'full': 4500, 'enrichment': 1700, 'academic': 2200},
-        '9-12': {'full': 5000, 'enrichment': 2000, 'academic': 2500}
+        'K': {
+            'morning': 1600,  # Per day/week
+            'afternoon': 800   # Add-on per day/week
+        },
+        '1-2': {
+            'full': 2400,     # Per day/week
+            'enrichment': 2400  # Assume same as full
+        },
+        '3-8': {
+            'enrichment': 2300,  # Per day/week
+            'academic': 2800     # Per day/week (Academic + Enrichment)
+        },
+        '9-12': {
+            'enrichment': 2400,  # Per day/week
+            'academic': 2900     # Per day/week (Academic + Enrichment)
+        }
     }
     total = 0
+    academic_fee = 500  # Annual fee for academic programs
     grade_key = 'K' if grade == 'K' else '1-2' if grade in ['1', '2'] else '3-8' if grade in [str(i) for i in range(3, 9)] else '9-12'
+    
+    has_academic = False
     for assignment in assignments:
         program_type = assignment.get('program_type', '').lower()
-        if program_type in pricing[grade_key]:
-            total += pricing[grade_key][program_type]
+        class_id = assignment.get('class_id')
+        if not class_id:
+            continue
+        # Fetch class days
+        class_response = supabase.table('classes').select('days').eq('class_id', class_id).execute()
+        if not class_response.data:
+            continue
+        days = class_response.data[0]['days'] or []
+        num_days = len(days) if days else 0
+        
+        if program_type in pricing[grade_key] and num_days > 0:
+            # Tuition is per day/week multiplied by number of days
+            total += pricing[grade_key][program_type] * num_days
+            if program_type == 'academic':
+                has_academic = True
+    
+    # Add academic fee if enrolled in academic program
+    if has_academic:
+        total += academic_fee
+    
     return total
 
 def apply_sibling_discount(total_amount, parent_id, parent_student_count):
@@ -202,6 +235,28 @@ def normalize_grade_level(grade: str) -> List[str]:
     logging.warning(f"Invalid grade format: {grade}")
     return []
 
+def apply_sibling_discount_per_family(parent_student_tuitions):
+    """
+    Apply sibling discount: first student pays full price, others get 10% off.
+    parent_student_tuitions: List of {'student_id', 'student_name', 'grade', 'amount', 'parent_id'}
+    Returns: Updated list with discounted amounts
+    """
+    if len(parent_student_tuitions) <= 1:
+        return parent_student_tuitions
+    
+    # Sort by student_id to ensure consistent "first" student
+    sorted_students = sorted(parent_student_tuitions, key=lambda x: x['student_id'])
+    
+    # First student pays full price
+    result = [sorted_students[0].copy()]  # Copy to avoid modifying original
+    
+    # Apply 10% discount to others
+    for student in sorted_students[1:]:
+        student_copy = student.copy()
+        student_copy['amount'] = student_copy['amount'] * 0.9
+        result.append(student_copy)
+    
+    return result
 
 # Routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -502,25 +557,42 @@ def delete_teacher(teacher_id):
 @app.route('/classes', methods=['GET'])
 @login_required
 def classes():
-    if current_user.role == 'parent':
+    if current_user.role not in ['admin', 'teacher']:
         flash('Access denied: Insufficient permissions', 'danger')
         return redirect(url_for('students'))
     try:
-        # Fetch classes with teachers and classrooms
+        # Test a simple query without joins
+        simple_classes_response = supabase.table('classes').select('class_id, name').execute()
+        logger.info(f"Simple classes query result: {simple_classes_response.data}")
+
+        # Original query with joins
         classes_response = supabase.table('classes').select('*, teachers(*), classrooms(*)').execute()
+        logger.info(f"Classes query result: {classes_response.data}")
+
         # Fetch class-student relationships
         class_students_response = supabase.table('class_students').select('class_id, student_id, program_type').execute()
+        logger.info(f"Class students query result: {class_students_response.data}")
+
         # Fetch student details
         students_response = supabase.table('students').select('student_id, first_name, last_name, grade_level').execute()
+        logger.info(f"Students query result: {students_response.data}")
+
         # Fetch teachers and classrooms for modals
         teachers_response = supabase.table('teachers').select('teacher_id, first_name, last_name').execute()
+        logger.info(f"Teachers query result: {teachers_response.data}")
+
         classrooms_response = supabase.table('classrooms').select('classroom_id, building_number, room_number').execute()
+        logger.info(f"Classrooms query result: {classrooms_response.data}")
 
         classes_data = classes_response.data
         class_students_data = class_students_response.data
         students_data = students_response.data
         teachers_data = teachers_response.data
         classrooms_data = classrooms_response.data
+
+        if not classes_data:
+            logger.warning("No classes data returned from query")
+            flash("No classes found in the database", 'warning')
 
         # Build class-student mapping
         class_student_map = {}
@@ -538,10 +610,8 @@ def classes():
             cls_copy = cls.copy()
             cls_copy['days_array'] = cls['days'] or []
             cls_copy['days'] = format_days(cls['days'])
-            # Attach related data
             cls_copy['teachers'] = cls.get('teachers', None)
             cls_copy['classrooms'] = cls.get('classrooms', None)
-            # Get students for this class
             student_assignments = class_student_map.get(cls['class_id'], [])
             cls_copy['students'] = [
                 {**s, 'program_type': sa['program_type']}
@@ -892,6 +962,7 @@ def tuition():
                 'program_type': cs['program_type']
             })
 
+        # Build parent-student mapping
         parent_student_map = {}
         for sp in student_parents_data:
             parent_id = sp['parent_id']
@@ -900,31 +971,49 @@ def tuition():
                 parent_student_map[parent_id] = []
             parent_student_map[parent_id].append(student_id)
 
-        tuition_records = []
+        # Calculate base tuition for each student
+        tuition_records_by_parent = {}
         for student in students_data:
+            student_id = student['student_id']
             if current_user.role == 'parent':
                 parent_students = parent_student_map.get(current_user.parent_id, [])
-                if student['student_id'] not in parent_students:
+                if student_id not in parent_students:
                     continue
-            assignments = student_classes_map.get(student['student_id'], [])
+            assignments = student_classes_map.get(student_id, [])
             amount = calculate_student_tuition(student['grade_level'], assignments)
-            parent_id = next((sp['parent_id'] for sp in student_parents_data if sp['student_id'] == student['student_id']), None)
-            parent_student_count = {pid: len(sids) for pid, sids in parent_student_map.items()}
-            amount = apply_sibling_discount(amount, parent_id, parent_student_count)
-            status = 'Pending' if amount > 0 else 'No Charge'
-            tuition_records.append({
+            parent_id = next((sp['parent_id'] for sp in student_parents_data if sp['student_id'] == student_id), None)
+            
+            if parent_id not in tuition_records_by_parent:
+                tuition_records_by_parent[parent_id] = []
+            
+            tuition_records_by_parent[parent_id].append({
+                'student_id': student_id,
                 'student_name': f"{student['last_name']}, {student['first_name']}",
                 'grade': student['grade_level'],
-                'amount': f"${amount:.2f}",
-                'status': status
+                'amount': amount,
+                'parent_id': parent_id
             })
+
+        # Apply sibling discount per family
+        tuition_records = []
+        for parent_id, records in tuition_records_by_parent.items():
+            discounted_records = apply_sibling_discount_per_family(records)
+            for record in discounted_records:
+                status = 'Pending' if record['amount'] > 0 else 'No Charge'
+                tuition_records.append({
+                    'student_name': record['student_name'],
+                    'grade': record['grade'],
+                    'amount': f"${record['amount']:.2f}",
+                    'status': status
+                })
+
         tuition_records = sorted(tuition_records, key=lambda x: x['student_name'].lower())
         return render_template('index.html', active_tab='tuition', tuition=tuition_records, user_role=current_user.role)
     except Exception as e:
         logger.error(f"Error fetching tuition: {str(e)}")
         flash(f"Error fetching tuition: {str(e)}", 'danger')
         return render_template('index.html', active_tab='tuition', tuition=[], user_role=current_user.role)
-
+    
 @app.route('/import_from_csv', methods=['POST'])
 @login_required
 def import_from_csv():

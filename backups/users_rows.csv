@@ -1,0 +1,7 @@
+user_id,email,password_hash,role,parent_id,created_at
+1a887030-7495-4813-8ea8-ab2d9d07c791,teacher@example.com,$2b$12$dsnhh/azBxZwueVbp/ZV5edd2fufcy9FK3L3Yh22jYDfjFt4FjVl.,teacher,,2025-04-22 19:04:32.64354
+2606d627-4fb1-4ab9-b742-86144c6c1575,a.vosahlik@gmail.com,$2b$12$t9sW8aE7hlIhX2GAdEr1FeLPWW15HozigeHCg0UFeaS7M3NNz1QOK,admin,,2025-04-29 19:21:41.926786
+2ac2eca0-bc7b-47c7-9af6-a7bedf651f91,admin@example.com,$2b$12$bIw4tah5ujHgb2KosYCmHu/CJnoHo8cuMMizc4kGfhLMbosxFdLOu,admin,,2025-04-22 19:03:56.129381
+7d1ce5f4-a1a8-4ea2-9ae0-f33711b9cccd,w.vosahlik@example.com,$2b$12$3j2l.uGAeu2tUQXigTEAlu5bd1vEDTk1ztqsRfkPILbsAqgJinO7a,parent,b7d3ffa5-f433-4801-92e5-05cc4b8e24a6,2025-04-22 19:05:30.293369
+91c1c233-9607-47dc-a525-1e9c4e5bcf39,test1@example.com,$2b$12$xXUlybXT/kB22Qpz1mKYaOVUMEeEdabHvhqya/7c/owfFg73H2Gly,admin,,2025-04-29 15:51:58.771515
+c9c6732f-aef3-4838-b54b-c9ec59e48e2e,update_test@example.com,$2b$12$vSX8.ZWrqre8sAj.ygojYuqhI1ySrqkfRHVxfTec6F7Uwsq0Xyy6C,admin,,2025-05-07 17:01:34.255069
