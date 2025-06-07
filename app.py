@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 from supabase import create_client, Client
+import httpx
 import os
 from dotenv import load_dotenv
 import pandas as pd
@@ -35,13 +36,25 @@ login_manager.login_view = 'login'
 load_dotenv()
 supabase_url = os.getenv('SUPABASE_URL')
 supabase_key = os.getenv('SUPABASE_KEY')
-
+logger.info(f"SUPABASE_URL: {supabase_url}")
+logger.info(f"SUPABASE_KEY: {supabase_key}")
 if not supabase_url or not supabase_key:
     logger.error("Missing SUPABASE_URL or SUPABASE_KEY in .env file")
     raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY in .env file")
 
 try:
+    # Initialize the Supabase client
     supabase: Client = create_client(supabase_url, supabase_key)
+    # Force postgrest initialization with a simple query
+    supabase.table("students").select("*").limit(1).execute()  # Use an existing table
+    logger.info(f"supabase._postgrest: {supabase._postgrest}")  # Debug output
+
+    # Create a custom HTTP client with SSL verification disabled (for debugging)
+    custom_client = httpx.Client(verify=False)
+
+    # Patch the postgrest and auth clients
+    supabase._postgrest._client = custom_client
+    supabase.auth._client = custom_client
 except Exception as e:
     logger.error(f"Error initializing Supabase client: {str(e)}")
     raise
